@@ -1,0 +1,30 @@
+{
+  "name": "@preact-mvc/atoll-island",
+  "version": "0.0.0",
+  "description": "preact-mvc island adapter: <Island/> shell components + Preact renderer for @preact-mvc/atoll worker islands",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./package.json": "./package.json",
+    "./*": "./src/*"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@preact-mvc/atoll": "*",
+    "@preact-mvc/core": "*",
+    "preact": "^10.24.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "license": "MIT"
+}

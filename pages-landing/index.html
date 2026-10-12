@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="preact-mvc — Angular-style modules and DI, class-based JSX views on Preact, signal reactivity, and worker-rendered islands." />
+    <title>preact-mvc — modules, DI &amp; class views on Preact</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1017; --panel: #171c28; --border: #2a3350;
+        --text: #e8eaf6; --body: #b9bde0; --muted: #8a90b8; --accent: #8b9cf9;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; color: var(--text);
+        background:
+          radial-gradient(1200px 700px at 50% -10%, #1d2540 0%, transparent 60%),
+          radial-gradient(900px 600px at 85% 110%, #161b33 0%, transparent 55%),
+          var(--bg);
+        min-height: 100vh;
+      }
+      header {
+        display: flex; align-items: center; gap: 9px;
+        height: 52px; padding: 0 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      header img { height: 26px; border-radius: 6px; }
+      header .name { font-weight: 800; font-size: 1.05rem; letter-spacing: .09em; }
+      header .name span { font-size: .62em; vertical-align: .55em; color: var(--accent); }
+      main { max-width: 880px; margin: 0 auto; padding: 72px 24px 80px; }
+      h1 { font-size: 2.6rem; margin: 0 0 18px; line-height: 1.15; }
+      h1 .em { color: var(--accent); }
+      .lead { font-size: 1.15rem; color: var(--body); line-height: 1.6; max-width: 640px; }
+      .cta { display: flex; gap: 12px; margin: 34px 0 56px; flex-wrap: wrap; }
+      .cta a {
+        padding: 10px 20px; border-radius: 8px; text-decoration: none;
+        font-weight: 600; font-size: .95rem;
+      }
+      .cta .primary { background: var(--accent); color: #0d1017; }
+      .cta .secondary { border: 1px solid var(--border); color: var(--text); background: var(--panel); }
+      .cta .secondary:hover { border-color: var(--accent); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+      .card {
+        border: 1px solid var(--border); border-radius: 10px;
+        padding: 18px 20px; background: color-mix(in srgb, var(--panel) 70%, transparent);
+      }
+      .card h2 { font-size: 1rem; margin: 0 0 8px; }
+      .card p { font-size: .88rem; color: var(--body); line-height: 1.55; margin: 0; }
+      .card code { font-family: Consolas, monospace; font-size: .8em; color: var(--accent); }
+      footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--border); font-size: .8rem; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="./favicon.svg" alt="" />
+      <span class="name">PREACT<span>MVC</span></span>
+    </header>
+    <main>
+      <h1>Angular's architecture.<br /><span class="em">JSX's ergonomics.</span></h1>
+      <p class="lead">
+        Modules, dependency injection, and decorators around class-based views
+        on Preact — with signal reactivity and worker-rendered islands. Build
+        the app Angular would structure with the components React would write.
+      </p>
+      <div class="cta">
+        <a class="primary" href="./docs/">Read the docs</a>
+        <a class="secondary" href="./docs/demo-app/">Live demos</a>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2>Modules &amp; DI</h2>
+          <p><code>@Module</code>, hierarchical injectors, <code>inject()</code> in field initializers — Angular's scoping model, no decorators-era baggage.</p>
+        </div>
+        <div class="card">
+          <h2>Class views</h2>
+          <p><code>@Component</code> + <code>View</code>: inject once at mount, render is plain code — no hooks, no deps arrays, no stale closures.</p>
+        </div>
+        <div class="card">
+          <h2>MVC organization</h2>
+          <p><code>@Controller</code> classes own interaction state; declaration scope decides who shares the instance.</p>
+        </div>
+        <div class="card">
+          <h2>Signals</h2>
+          <p><code>signal</code>/<code>computed</code>/<code>effect</code> with scope-bound disposal — fine-grained updates, no manual unsubscribe.</p>
+        </div>
+        <div class="card">
+          <h2>Worker islands</h2>
+          <p>The same view classes render inside Web Workers, streamed to the shell DOM over an op protocol. Real multithreaded UI.</p>
+        </div>
+        <div class="card">
+          <h2>Enterprise-ready</h2>
+          <p>Tailwind + shadcn patterns, TanStack Query via DI, zod forms, ECharts — see the live enterprise example.</p>
+        </div>
+      </div>
+      <footer>preact-mvc — MIT licensed.</footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,100 @@
+# Continuous integration — typechecks + unit tests.
+#
+# The root vitest config runs every suite in the repo: packages/*/src plus
+# src/app. Typechecks run per-tsconfig so each publishable package is
+# verified against only its own declared dependency graph.
+#
+# Actions are pinned to commit SHAs — a hijacked major tag can't move the
+# pin. Dependabot bumps SHAs (see .github/dependabot.yml).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            docs-consumer/package-lock.json
+            examples/enterprise/package-lock.json
+
+      # Example toolchains are installed by scripts/ci-install.mjs — the
+      # list lives there so this workflow and publish.yml can't drift.
+      - name: Install dependencies
+        run: node scripts/ci-install.mjs
+
+      - name: Typecheck — root (app + all packages via workspace links)
+        run: npx tsc --noEmit
+
+      - name: Typecheck — publishable packages (own dep graph only)
+        run: |
+          set -e
+          for pkg in core atoll atoll-island; do
+            echo "--- packages/$pkg"
+            npx tsc -p "packages/$pkg/tsconfig.json"
+          done
+
+      - name: Typecheck — examples/enterprise
+        run: npm --prefix examples/enterprise run typecheck
+
+      # Vite build exercises what tests can't: the bundler-detectable
+      # worker entry (new Worker(new URL(...import.meta.url))) must emit a
+      # real worker chunk.
+      - name: Build — demo app + worker entry
+        run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            docs-consumer/package-lock.json
+            examples/enterprise/package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/ci-install.mjs
+
+      - name: Test — vitest (framework + app + islands suites)
+        run: npm test
+
+  # Advisory audit — `npm audit` reads each lockfile, no install needed.
+  # Fails on high/critical findings: a red audit job means a disclosed
+  # vuln exists in a pinned tree even though `npm ci` output is unchanged.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+
+      - name: Audit all lockfiles
+        run: |
+          set -e
+          for d in . docs-consumer examples/*; do
+            if [ -f "$d/package-lock.json" ]; then
+              echo "=== npm audit: $d ==="
+              (cd "$d" && npm audit --audit-level=high)
+            fi
+          done

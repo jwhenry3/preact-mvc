@@ -1,0 +1,237 @@
+/* Dark-only site: the palette below is the single theme. */
+:root {
+  color-scheme: dark;
+  --bg: #0d1017;
+  --panel: #171c28;
+  --border: #2a3350;
+  --text: #e8eaf6;
+  --bodytext: #b9bde0;
+  --muted: #8a90b8;
+  --accent: #8b9cf9;
+  --btn: #1d2436;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--text);
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #1d2540 0%, transparent 60%),
+    radial-gradient(900px 600px at 85% 110%, #161b33 0%, transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
+code { font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace; font-size: 0.9em; }
+
+.shell { display: flex; flex-direction: column; min-height: 100vh; }
+.shell-body { display: flex; flex: 1; min-width: 0; }
+
+/* Sticky top bar: brand + site tabs. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+}
+.site-brand img { display: block; height: 26px; width: auto; border-radius: 6px; }
+.site-brand-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.09em;
+  color: var(--text);
+  line-height: 1;
+}
+.site-brand-js { font-size: 0.62em; vertical-align: 0.55em; letter-spacing: 0.04em; color: var(--accent); }
+.site-tabs { display: flex; gap: 4px; }
+.site-tabs a {
+  padding: 5px 11px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.site-tabs a:hover { color: var(--text); background: var(--panel); }
+.site-tabs a.active { color: var(--accent); background: var(--panel); }
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+}
+.nav-section { margin-bottom: 18px; }
+.nav-section h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.nav-link {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.nav-link:hover { background: var(--panel); }
+.nav-link.active { background: var(--panel); color: var(--accent); }
+
+.content {
+  flex: 1;
+  max-width: 960px;
+  padding: 32px 44px 80px;
+}
+
+.site-footer {
+  margin-top: 64px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+article h1 { margin-top: 0; font-size: 1.9rem; }
+article h2 { margin-top: 36px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+article h3 { margin-top: 24px; }
+article p, article li { line-height: 1.65; color: var(--bodytext); }
+article a { color: var(--accent); }
+article .lead { font-size: 1.05rem; color: var(--text); }
+article code:not(pre code) {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+article blockquote {
+  margin: 14px 0; padding: 10px 16px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+}
+article blockquote p { margin: 4px 0; }
+article hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+.doc-table {
+  border-collapse: collapse; width: 100%; margin: 12px 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.doc-table th, .doc-table td {
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  text-align: left;
+  font-size: 0.88rem;
+  vertical-align: top;
+}
+.doc-table th { background: color-mix(in srgb, var(--panel) 80%, transparent); }
+.doc-table .muted { color: var(--muted); }
+
+figure.code {
+  margin: 14px 0; border: 1px solid var(--border); border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+/* Which side of the island wire a snippet runs on. */
+figure.code[data-side="worker"] {
+  --side-tint: rgba(124, 140, 248, 0.07);
+  --side-ink: #8b9cf9;
+}
+figure.code[data-side="shell"] {
+  --side-tint: rgba(76, 195, 138, 0.06);
+  --side-ink: #4cc38a;
+}
+figure.code[data-side="app"] {
+  --side-tint: rgba(240, 180, 90, 0.06);
+  --side-ink: #f0b45a;
+}
+figure.code[data-side="module"] {
+  --side-tint: rgba(190, 120, 230, 0.06);
+  --side-ink: #c89cf0;
+}
+figure.code[data-side] {
+  background:
+    linear-gradient(var(--side-tint), var(--side-tint)),
+    color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.code-file {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+}
+.code-side {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--side-ink);
+  border: 1px solid var(--side-ink);
+  background: var(--side-tint);
+  flex-shrink: 0;
+}
+figure.code pre.hljs {
+  margin: 0;
+  background: transparent;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  border-radius: 0;
+}
+
+.demo-frame { margin: 14px 0; }
+.demo-frame-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.demo-frame-bar a { color: var(--accent); text-decoration: none; }
+.demo-frame iframe {
+  width: 100%;
+  height: 560px;
+  border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  background: var(--bg);
+}
+.demo-hint { font-size: 0.8rem; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .content { padding: 24px 20px 64px; }
+}

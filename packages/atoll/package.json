@@ -1,0 +1,25 @@
+{
+  "name": "@preact-mvc/atoll",
+  "version": "0.0.0",
+  "description": "Framework-free worker-rendered islands: op protocol, proxy DOM, worker runtime, main-thread driver",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./package.json": "./package.json",
+    "./*": "./src/*"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "license": "MIT"
+}

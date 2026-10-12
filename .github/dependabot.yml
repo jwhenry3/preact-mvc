@@ -1,0 +1,8 @@
+# Keep the SHA-pinned actions current — dependabot bumps the pin AND the
+# trailing version comment together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

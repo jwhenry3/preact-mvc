@@ -1,0 +1,68 @@
+# Builds the docs-consumer site + the two demos and deploys the assembled
+# dist-pages/ tree to GitHub Pages:
+#   /                 landing page (pages-landing/)
+#   /docs/            consumer docs site (+ demo mounts embedded by iframes)
+#   /docs/demo/       src/app reference app
+#   /docs/enterprise/ examples/enterprise app
+#
+# Everything is static: no SharedArrayBuffer, so no COOP/COEP service worker
+# is needed. The demos' router derives its base from document.baseURI, so
+# they route correctly under the /<repo>/docs/<demo>/ mount.
+#
+# NOTE: the internals docs (docs/*.md) are in-repo developer docs and are
+# deliberately not part of the deployed site.
+name: Deploy docs to GitHub Pages
+
+# Manual only — docs go live when the maintainer decides, not on push to
+# main. Run from the Actions tab ("Deploy docs to GitHub Pages").
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/enterprise/package-lock.json
+            docs-consumer/package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/ci-install.mjs
+
+      - name: Build and assemble Pages artifact
+        run: node scripts/build-pages.mjs
+        env:
+          # Canonical URLs (sitemap/OG tags) — set to the deployed origin.
+          # Relative links don't need it; it only affects metadata.
+          DOCS_BASE_URL: ${{ vars.DOCS_BASE_URL || 'http://localhost:4190/docs/' }}
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
