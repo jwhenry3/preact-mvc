@@ -11,12 +11,19 @@ export function IslandProtocol() {
         those ops onto real nodes and routes real events back. Everything
         else — instances, emit, callbacks — is built on that one stream.
       </p>
+      <p>
+        That engine is the real Atoll: <code>@atolljs/islands</code> +{' '}
+        <code>@atolljs/core</code> implement the op protocol, proxy DOM,
+        instance lifecycle, and driver. <code>@preact-mvc/atoll</code> is a
+        thin facade that re-exports them with our transport defaults, and{' '}
+        <code>@preact-mvc/atoll-island</code> adds the framework binding.
+      </p>
 
       <h2>The op protocol</h2>
       <p>
-        A small vocabulary covers every DOM effect (modeled on the Atoll
-        islands design — see <code>docs/atoll/</code> in the repo for the
-        original architecture docs this implements):
+        A small vocabulary covers every DOM effect (Atoll's ops — see{' '}
+        <code>docs/atoll/</code> in the repo for the original architecture
+        docs):
       </p>
       <table class="doc-table">
         <thead>
@@ -85,16 +92,44 @@ export function IslandProtocol() {
       <h2>Mount lifecycle</h2>
       <p>
         <code>connectIslandWorker</code> wraps the worker in a tiny RPC
-        client (mount/update/dispatch/setSize/unmount).{' '}
+        client (mount/updateProps/dispatch/setSize/unmount).{' '}
         <code>mountIsland</code> sends the app name + initial props, replays
         ops as they stream back, wires <code>ResizeObserver</code> to push
         size changes into the worker, and enforces a mount timeout so a
         failed worker surfaces as an error state instead of a blank box.
       </p>
+
+      <h2>Transport: poll vs push</h2>
+      <p>
+        Two flush modes decide how op batches leave the worker.{' '}
+        <code>mode: 'poll'</code> (the default) is pure{' '}
+        <code>postMessage</code> — the driver polls the worker's op queue on
+        a short interval, so nothing but a plain worker entry is needed.{' '}
+        <code>mode: 'push'</code> rings a SharedArrayBuffer doorbell for
+        immediate flush, but SAB requires cross-origin isolation headers (
+        <code>Cross-Origin-Opener-Policy: same-origin</code> +{' '}
+        <code>Cross-Origin-Embedder-Policy: require-corp</code>) — hosts like
+        GitHub Pages can't serve them, so poll is the default everywhere.
+        Push mode is opt-in per mount: <code>mode: 'push'</code> on{' '}
+        <code>&lt;Island&gt;</code>, or <code>doorbell: true</code> on{' '}
+        <code>connectIslandWorker</code>.
+      </p>
+
+      <h2>Contract enforcement</h2>
+      <p>
+        When a worker entry attaches a contract (
+        <code>viewIslandApp(App, {'{'} contract {'}'})</code>), the wire gets a
+        schema on both ends: mount and <code>updateProps</code> payloads are
+        validated against <code>props</code> before they reach the app, and
+        every declared <code>emit</code> is checked worker-side against{' '}
+        <code>events</code> before it goes on the wire. Undeclared or
+        malformed data fails fast in the worker instead of surfacing as a
+        shell-side mystery.
+      </p>
       <blockquote>
         <p>
           Deep internals — per-instance state, the render-scope tracking, the
-          in-process test transport — live in the repo's{' '}
+          event-name bridge — live in the repo's{' '}
           <code>docs/islands.md</code>. This page is the consumer-facing
           model; that doc is the invariant list.
         </p>

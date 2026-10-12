@@ -28,3 +28,22 @@ Object.defineProperty(globalThis, 'localStorage', {
   value: new MemoryStorage(),
   configurable: true,
 });
+
+// jsdom has no matchMedia — the dark-mode ThemeService only needs the
+// matches flag + listener plumbing, so a fixed "light" stub suffices.
+if (typeof globalThis.matchMedia !== 'function') {
+  Object.defineProperty(globalThis, 'matchMedia', {
+    value: (query: string): MediaQueryList =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList,
+    configurable: true,
+  });
+}

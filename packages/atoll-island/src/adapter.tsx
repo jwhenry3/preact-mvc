@@ -29,7 +29,10 @@ import {
   enterInstance,
   exitInstance,
   getActiveInstance,
+  withContract,
+  ProxyElement,
   type ImperativeIslandApp,
+  type IslandContract,
   type IslandWorkerDef,
   type RenderContext,
   type RenderedHandle,
@@ -88,21 +91,100 @@ function installRenderScope(): void {
   };
 }
 
+/**
+ * Event-name bridge for the proxy DOM. Preact decides the DOM event name
+ * via `'onclick' in el`: real elements report the lowercase handler props
+ * as present, so `onClick` registers `addEventListener('click', …)` and
+ * keys `dom._listeners['click']`. The proxy element has no `on*` props —
+ * the probe fails and Preact uses the prop-sliced name 'Click' for BOTH.
+ * The driver then listens for a type real DOM never dispatches (no events
+ * arrive), and `eventProxy` looks its dict up under 'Click' anyway.
+ *
+ * The bridge normalizes at the proxy boundary: the `listen` op carries
+ * the real DOM type ('click' — driver attaches a working listener) while
+ * the wrapped handler re-tags the enriched payload with the prop-sliced
+ * name ('Click') so Preact's `eventProxy` still finds its dict entry.
+ * All-caps ('DOMContentLoaded') and lowercase types pass through. The
+ * wrapped-handler map keeps removeEventListener able to detach the same
+ * registration.
+ */
+type EventFn = (this: unknown, e: unknown) => void;
+let eventBridgeInstalled = false;
+function installEventNameBridge(): void {
+  if (eventBridgeInstalled) return;
+  eventBridgeInstalled = true;
+  /** element → original fn → prop-sliced type → wrapped fn */
+  const bridged = new WeakMap<object, Map<EventFn, Map<string, EventFn>>>();
+
+  const decap = (type: string): string =>
+    type.length > 1 &&
+    type[0] === type[0]!.toUpperCase() &&
+    type[1] === type[1]!.toLowerCase()
+      ? type[0]!.toLowerCase() + type.slice(1)
+      : type;
+
+  type ListenerMethods = {
+    addEventListener: (this: object, type: string, fn: EventFn, opts?: unknown) => void;
+    removeEventListener: (this: object, type: string, fn: EventFn, opts?: unknown) => void;
+  };
+  const proto = ProxyElement.prototype as unknown as ListenerMethods;
+  const origAdd = proto.addEventListener;
+  const origRemove = proto.removeEventListener;
+
+  proto.addEventListener = function (
+    this: object,
+    type: string,
+    fn: EventFn,
+    opts?: unknown,
+  ): void {
+    const dom = decap(type);
+    let effective = fn;
+    if (dom !== type) {
+      effective = function (this: unknown, e: unknown): void {
+        fn.call(this, { ...(e as Record<string, unknown>), type });
+      };
+      let byFn = bridged.get(this);
+      if (byFn === undefined) bridged.set(this, (byFn = new Map()));
+      let byType = byFn.get(fn);
+      if (byType === undefined) byFn.set(fn, (byType = new Map()));
+      byType.set(type, effective);
+    }
+    origAdd.call(this, dom, effective, opts);
+  };
+
+  proto.removeEventListener = function (
+    this: object,
+    type: string,
+    fn: EventFn,
+    opts?: unknown,
+  ): void {
+    const effective = bridged.get(this)?.get(fn)?.get(type) ?? fn;
+    origRemove.call(this, decap(type), effective, opts);
+  };
+}
+
 export interface ViewIslandAppOptions {
   /** Providers for the island's root injector — the island-side equivalent
    *  of `bootstrap(AppModule, providers)`. */
   providers?: Provider[];
+  /** Attach a `defineIslandContract` contract: mount/updateProps props are
+   *  validated against its schema, and declared `emit` payloads are
+   *  checked worker-side. */
+  contract?: IslandContract;
 }
 
 /** Wrap a View class or function component as a `RenderedIslandApp`. */
 export function viewIslandApp(App: AnyComponent, opts?: ViewIslandAppOptions): RenderedIslandApp {
   installRenderScope();
+  installEventNameBridge();
   const app: RenderedIslandApp = {
-    renderer: 'view',
+    renderer: 'preact-mvc',
     mount({ instance, doc, props }: RenderContext): RenderedHandle {
       const inj = new Injector(undefined, `island ${instance}`);
       for (const p of opts?.providers ?? []) inj.provide(p);
+      let current = props;
       const renderRoot = (p: Record<string, unknown>): void => {
+        current = p;
         const vnode = h(InjectorContext.Provider, { value: inj }, h(App, p));
         (vnode as unknown as Record<string, unknown>)[ISLAND_KEY] = instance;
         render(vnode, doc.body as never);
@@ -110,6 +192,14 @@ export function viewIslandApp(App: AnyComponent, opts?: ViewIslandAppOptions): R
       renderRoot(props);
       return {
         update: renderRoot,
+        // The dispatch task's sync lane: run the event handler, then
+        // re-render synchronously (Preact's render() IS the flush — signal
+        // writes would otherwise defer to a microtask and their ops would
+        // miss this task's batch, surfacing a poll later).
+        sync: (fn: () => void) => {
+          fn();
+          renderRoot(current);
+        },
         dispose: () => {
           try {
             render(null, doc.body as never);
@@ -122,7 +212,7 @@ export function viewIslandApp(App: AnyComponent, opts?: ViewIslandAppOptions): R
   };
   const stamp = islandAppNameOf(App);
   if (stamp !== undefined) (app as { islandAppName?: string }).islandAppName = stamp;
-  return app;
+  return opts?.contract !== undefined ? withContract(opts.contract, app) : app;
 }
 
 /** Stamp + wrap in one step — `viewIsland('counter', CounterView)` yields

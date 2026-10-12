@@ -14,9 +14,12 @@ export class CounterIsland extends View<{ start?: number; label?: string }> {
 
   render() {
     return (
-      <div class="island-card">
-        <h3>{this.props.label ?? 'Worker counter'}</h3>
+      <div class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-2">
+        <h3 class="text-sm font-semibold leading-none tracking-tight">
+          {this.props.label ?? 'Worker counter'}
+        </h3>
         <button
+          class="w-full h-9 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium shadow hover:bg-primary/90 transition-colors cursor-pointer"
           onClick={() => {
             this.count.value++;
             if (this.count.value % 5 === 0) emit('milestone', { count: this.count.value });
@@ -45,10 +48,12 @@ export class ClockIsland extends View {
 
   render() {
     return (
-      <div class="island-card">
-        <h3>Worker clock</h3>
-        <p class="island-clock">{this.time.value}</p>
-        <p class="muted">This text re-renders entirely inside the worker.</p>
+      <div class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-2">
+        <h3 class="text-sm font-semibold leading-none tracking-tight">Worker clock</h3>
+        <p class="text-2xl font-mono tabular-nums">{this.time.value}</p>
+        <p class="text-xs text-muted-foreground">
+          This text re-renders entirely inside the worker.
+        </p>
       </div>
     );
   }

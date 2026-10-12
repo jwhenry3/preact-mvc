@@ -1,6 +1,8 @@
 import { Component, View, inject, Link, RouterOutlet, Router } from '@preact-mvc/core';
 import { LayoutDashboard, Users, Settings, Boxes, Sun, Moon } from 'lucide-preact';
+import { SessionService } from '@/services/session.service';
 import { ThemeService } from '@/services/theme.service';
+import { ShellController } from './shell.controller';
 import { Avatar } from '@/ui/misc';
 import { Separator } from '@/ui/misc';
 import { cn } from '@/lib/cn';
@@ -12,15 +14,18 @@ const NAV = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
-@Component()
+@Component({ controllers: [ShellController] })
 export class ShellView extends View {
   private router = inject(Router);
   private theme = inject(ThemeService);
+  private session = inject(SessionService);
+  private c = inject(ShellController);
 
   render() {
     const url = this.router.url.value;
     const dark = this.theme.resolved.value === 'dark';
     const page = NAV.find((n) => n.to === url)?.label ?? 'Dashboard';
+    const user = this.session.user.value;
     return (
       <div class="flex min-h-screen bg-background">
         {/* Sidebar */}
@@ -53,10 +58,10 @@ export class ShellView extends View {
           </nav>
           <div class="p-3 border-t">
             <div class="flex items-center gap-3 px-1">
-              <Avatar name="Ada Lovelace" class="h-8 w-8" />
+              <Avatar name={user.name} class="h-8 w-8" />
               <div class="text-sm">
-                <div class="font-medium">Ada Lovelace</div>
-                <div class="text-xs text-muted-foreground">admin</div>
+                <div class="font-medium">{user.name}</div>
+                <div class="text-xs text-muted-foreground">{user.role}</div>
               </div>
             </div>
           </div>
@@ -68,6 +73,14 @@ export class ShellView extends View {
             <div class="text-sm text-muted-foreground">
               Workspace <span class="mx-1">/</span>{' '}
               <span class="text-foreground font-medium">{page}</span>
+              {this.c.syncedRevenue.value && (
+                <span
+                  class="ml-3 text-xs"
+                  title="Hydrated via BroadcastChannel cache sync — the shell never fetched this"
+                >
+                  · Revenue {this.c.syncedRevenue.value} (worker-synced)
+                </span>
+              )}
             </div>
             <div class="flex items-center gap-2">
               <button
@@ -77,7 +90,7 @@ export class ShellView extends View {
               >
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <Avatar name="Ada Lovelace" class="h-8 w-8" />
+              <Avatar name={user.name} class="h-8 w-8" />
             </div>
           </header>
           <main class="flex-1 p-6 overflow-auto">

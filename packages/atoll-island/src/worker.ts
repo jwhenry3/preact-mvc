@@ -19,10 +19,30 @@ export {
   defineViewMonoWorker,
 } from './adapter';
 export type { ViewIslandAppOptions, ViewPolyWorkerRegistry } from './adapter';
+/**
+ * The mount components on the worker side — same surface as the shell
+ * entry (Atoll's `react-island/worker` convention): inside a worker-
+ * rendered tree the component's div is a ProxyElement, `mountIsland`
+ * takes the nested path, and the sub-island's ops tunnel up the parent
+ * instance's op stream. `connectIslandWorker` builds a shared sub-worker
+ * client; `emit` in a nested `onEvent` relays events to the page.
+ */
+export { Island, islandComponent, lazyIsland } from './shell';
+export type {
+  IslandProps,
+  IslandShellProps,
+  IslandAppRef,
+  IslandFacadeProps,
+} from './shell';
+export { connectIslandWorker, mountIsland, callbackProp } from '@preact-mvc/atoll/worker';
 export {
+  contractOf,
+  defineIslandContract,
   definePolyWorker,
   defineMonoWorker,
   emit,
+  installDomShim,
+  isIslandContract,
   runInInstance,
   enterInstance,
   exitInstance,
@@ -30,14 +50,17 @@ export {
   getLastActiveInstance,
   islandApp,
   islandAppNameOf,
+  withContract,
+  ProxyElement,
 } from '@preact-mvc/atoll/worker';
 export type {
+  EventPayload,
   ImperativeIslandApp,
+  IslandContract,
   RenderedIslandApp,
   RenderContext,
   RenderedHandle,
   IslandApp,
   IslandWorkerDef,
   ProxyDocument,
-  ProxyElement,
 } from '@preact-mvc/atoll/worker';

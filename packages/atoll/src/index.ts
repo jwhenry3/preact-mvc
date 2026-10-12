@@ -1,18 +1,36 @@
 /**
- * `@preact-mvc/atoll` — the framework-free islands core, modeled on
- * Atoll's `packages/islands` (docs/atoll/islands.md): a worker owns the
- * render loop against a proxy DOM; commits serialize to an op stream the
- * main-thread driver replays as real DOM mutations.
+ * `@preact-mvc/atoll` — the shell-facing facade over the real Atoll
+ * packages (`@atolljs/islands` + `@atolljs/core`). Worker islands render
+ * inside Web Workers against a proxy DOM; commits stream back as ops the
+ * driver replays onto real DOM.
  *
- * Shell side (this entry): mountIsland, connectIslandWorker, callbackProp,
- * islandApp. Worker side (import in worker entries): the `./worker`
- * subpath exports definePolyWorker/defineMonoWorker, emit, and the
- * instance-scope API. The preact-mvc adapter and <Island/> shell
- * components live in `@preact-mvc/atoll-island`.
+ * Shell side (this entry): `mountIsland`, `connectIslandWorker`,
+ * `callbackProp`, `islandApp`. Worker side (import in worker entries):
+ * the `./worker` subpath re-exports `@atolljs/islands/worker` —
+ * `definePolyWorker`/`defineMonoWorker`, `emit`, instance scope. The
+ * preact-mvc adapter and `<Island/>` shell components live in
+ * `@preact-mvc/atoll-island`.
  */
+export { islandApp, islandAppNameOf } from '@atolljs/islands';
+export type { IslandAppProps } from '@atolljs/islands';
+export {
+  defineIslandContract,
+  isIslandContract,
+  withContract,
+  contractOf,
+  contractWorkerOf,
+} from '@atolljs/islands';
+export type {
+  IslandContract,
+  IslandContractEventHandler,
+  IslandContractEvents,
+  IslandContractProps,
+  IslandWorkerOptions,
+} from '@atolljs/islands';
+export type { EventPayload, Op, WireProps } from '@atolljs/islands';
+export { z } from '@atolljs/core';
+export type { Schema } from '@atolljs/core';
+
 export { mountIsland, connectIslandWorker, callbackProp } from './driver';
-export type { IslandClient, IslandHandle, ConnectOptions } from './driver';
-export { islandApp, islandAppNameOf } from './app';
-export type { IslandAppProps } from './types';
-export type { Op, EventPayload, IslandCall, IslandReply, WorkerLike } from './ops';
-export { InProcessWorker, createInProcessWorker } from './inprocess';
+export type { ConnectOptions, MountOptions, WorkerLike } from './driver';
+export type { IslandClient, IslandHandle, Mode } from './driver';

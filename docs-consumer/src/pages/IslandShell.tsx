@@ -12,6 +12,37 @@ export function IslandShell() {
           receive events. Three mounting surfaces cover the common cases.
         </p>
 
+        <h2>islandComponent(contract) — the facade</h2>
+        <p>
+          The recommended mount. The contract module names the app, declares
+          the wire schemas, and carries the worker factory — so the call
+          site passes <em>no</em> worker plumbing, and props/events typecheck
+          against the contract:
+        </p>
+        <CodeBlock
+          language="tsx"
+          code={`import { islandComponent } from '@preact-mvc/atoll-island';
+import { tickerContract } from './ticker.contract';
+
+const Ticker = islandComponent(tickerContract);
+
+// onEvent narrows to the contract's declared events; island props are
+// the contract's props schema. No worker prop — the contract carries it.
+<Ticker
+  source="orders"
+  onEvent={(name, payload) => {
+    if (name === 'worker-ping') notify(payload);
+  }}
+/>`}
+        />
+        <blockquote>
+          <p>
+            The string-keyed form still exists —{' '}
+            <code>islandComponent('ticker')</code> — for registries whose
+            workers the shell already wires up.
+          </p>
+        </blockquote>
+
         <h2>&lt;Island&gt; — the primitive</h2>
         <CodeBlock
           language="tsx"
@@ -24,18 +55,22 @@ const tickerWorker = (): WorkerLike =>
   }) as WorkerLike;
 
 <Island
-  app="ticker"                    // registry key or stamped viewIsland ref
-  worker={tickerWorker}           // this mount OWNS the worker
+  app="ticker"                    // registry key, stamped ref, or contract
+  worker={tickerWorker}           // omit when app is a contract with worker
   props={{ source: 'orders' }}    // structured-cloneable
   onEvent={(name, payload) => log(name, payload)}
+  mode="poll"                     // 'push' needs COOP/COEP isolation headers
+  onReady={(handle) => handle.updateProps({ source: 'live' })}
+  onError={(err) => show(err)}
   className="metric-card"
-  style={{ minHeight: '3rem' }}
 />`}
         />
         <p>
           <code>worker</code> accepts a <code>WorkerLike</code> directly or a
           factory — use the factory form in real code so Vite detects the
-          entry. Unmounting the element terminates an owned worker.
+          entry. When <code>app</code> is a contract that carries a{' '}
+          <code>worker</code>, the contract module is the whole connection.
+          Unmounting the element terminates an owned worker.
         </p>
 
         <h2>Shared workers: one client, many islands</h2>
@@ -64,33 +99,27 @@ const client = connectIslandWorker({
           view trees, separate state, separate props, one worker process.
         </p>
 
-        <h2>islandComponent — a facade component</h2>
+        <h2>lazyIsland — code-split facades</h2>
+        <p>
+          Lazy-loads a module that exports a contract (or a stamped app) —
+          ideal for keeping a contract's worker factory and schema out of
+          the initial bundle's critical path:
+        </p>
         <CodeBlock
           language="tsx"
-          code={`import { islandComponent } from '@preact-mvc/atoll-island';
-import { tickerApp } from './ticker.worker';   // import type only — see note
+          code={`const HeavyChart = lazyIsland(() => import('./heavy-chart.contract'));
 
-const Ticker = islandComponent(tickerApp);
-
-// Used like any component; extra props become island props:
-<Ticker client={client} source="orders" refreshMs={500} />`}
+// The contract module loads on first mount; fallback renders meanwhile.
+<HeavyChart dataset="q4" fallback={<Skeleton />} />`}
         />
         <blockquote>
           <p>
-            Import the stamped app with <code>import type</code> in shell code
-            — the worker definition itself must never leak into the
-            main-thread bundle.
+            If you reference a stamped app instead of a contract, import it
+            with <code>import type</code> in shell code — a worker definition
+            must never leak into the main-thread bundle (defining one
+            installs instance globals).
           </p>
         </blockquote>
-
-        <h2>lazyIsland — code-split islands</h2>
-        <CodeBlock
-          language="tsx"
-          code={`const HeavyChart = lazyIsland(() => import('./heavy-chart.app'));
-
-// The app module loads on first mount; the worker entry stays separate.
-<HeavyChart client={client} dataset="q4" />`}
-        />
 
         <h2>Imperative: mountIsland</h2>
         <p>

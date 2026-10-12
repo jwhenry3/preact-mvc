@@ -68,15 +68,18 @@ release needs a one-time bootstrap: `npm run publish -- <ver> --direct`.
 packages/core/        @preact-mvc/core — the framework: injector,
                       decorators, modules, View classes, signals,
                       context, router
-packages/atoll/       @preact-mvc/atoll — framework-free islands core:
-                      op protocol, proxy DOM, worker runtime, driver.
-                      `.` entry = shell/mount API, `./worker` = worker defs
+packages/atoll/       @preact-mvc/atoll — facade over @atolljs/islands +
+                      @atolljs/core (the op protocol, proxy DOM, worker
+                      runtime, and driver are AtollJS code). `.` entry =
+                      shell/mount API, `./worker` = worker defs
 packages/atoll-island/ @preact-mvc/atoll-island — the *-island adapter:
                       `.` entry = <Island/>/islandComponent/lazyIsland
                       shell surface, `./worker` = viewIslandApp/
                       defineViewPolyWorker renderer
 src/app/              demo app — todos/counter/hello/standalone/islands
-src/test-setup.ts     vitest jsdom setup (Storage stub)
+src/ui/ src/lib/      shared design system: Tailwind v4 + shadcn tokens,
+                      cn() + CVA components (same skin as enterprise)
+src/test-setup.ts     vitest jsdom setup (Storage + matchMedia stubs)
 examples/enterprise/  separate vite app consuming the packages by name
 docs-consumer/        consumer docs site (Vite app — prerenders one static
                       page per route; deployed to GitHub Pages)
@@ -92,11 +95,11 @@ docs/                 second memory — see above
   `packages/core/src/view.ts` — never let Preact instantiate them directly.
   `inject()` belongs in field initializers/constructors; `render()` stays
   hook-free.
-- **The worker thread is DOM-free.** `packages/atoll/src/proxyDom.ts` is
-  the only "DOM" a worker sees; every mutation must serialize to an op.
-  Main-thread DOM access belongs in `driver.ts` only. `document` in worker
-  code resolves through the instance dispatcher — never assume ambient
-  globals.
+- **The worker thread is DOM-free.** Atoll's proxy DOM
+  (`@atolljs/islands/worker`, re-exported via `@preact-mvc/atoll/worker`)
+  is the only "DOM" a worker sees; every mutation must serialize to an op.
+  `document` in worker code resolves through the instance dispatcher —
+  never assume ambient globals.
 - **The wire is `postMessage`/`structuredClone`.** Props, event payloads,
   and emit payloads must be cloneable; functions cross only via
   `callbackProp` markers.

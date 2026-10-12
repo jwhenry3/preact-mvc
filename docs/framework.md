@@ -97,12 +97,29 @@ instance owned by the calling function component's mount.
 
 ## Router (`router/`)
 
-Signal-based: `Router` holds the current match as a signal; `RouterOutlet`
-re-renders on navigation. `RouterModule.forRoot(routes)` /
-`forChild(routes)` return module-shaped provider bundles. Route entries may
-carry `component` plus `module`/`providers`; module routes create the module
-injector under the outlet. `:param` segments decode into props; `*` is a
-wildcard. `Link` intercepts clicks for `navigate()`.
+Signal-based on top of `preact-router`: `Router` holds the URL and the
+matched chain as signals; `RouterOutlet` re-renders on navigation.
+`RouterModule.forRoot(routes)` returns a module-shaped provider bundle.
+Route entries may carry `component`, `module`, and `children`; module
+routes create the module injector under that outlet level. `:param`
+segments decode into merged `params`; `*` is a wildcard. `Link` intercepts
+clicks for `navigate()`.
+
+**Nested routes.** The URL resolves against `children` as a chain
+outermost → innermost (`router.matches`), each `<RouterOutlet/>` rendering
+its depth via context — a parent shell stays mounted while the child
+swaps. A route with children matches by prefix; a leaf must consume the
+whole tail. Params merge across levels (inner wins). Module routes nest
+injectors the same way: the child's module injector parents under the
+level that mounted it.
+
+**preact-router interop.** The outermost outlet mounts a preact-router
+`<Router>` bridge (a `default` sink child claims every URL). `navigate()`
+goes through `route()`, so embedded preact-router `<Router>`s update on
+our navigations; foreign `route()` calls and preact-router's global
+`<a href>` click interceptor flow back through the bridge's `onChange`
+into `router.url`. `Link` stops propagation so its own handler and the
+global interceptor don't double-navigate.
 
 **Base path.** The router knows its mount prefix so the same bundle runs at
 site root or nested under a static tree (the Pages demos mount under

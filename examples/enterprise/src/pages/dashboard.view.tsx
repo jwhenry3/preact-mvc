@@ -1,59 +1,40 @@
-import { Component, View, inject, signal } from '@preact-mvc/core';
-import { QueryClient } from '@tanstack/preact-query';
+import { Component, View, inject } from '@preact-mvc/core';
 import { formatDistanceToNow } from 'date-fns';
 import { TrendingUp, TrendingDown, DollarSign, Users as UsersIcon, ShoppingCart, Activity } from 'lucide-preact';
-import { Island } from '@preact-mvc/atoll-island';
-import type { WorkerLike } from '@preact-mvc/atoll-island';
-import { FakeApi } from '@/services/fake-api.service';
+import { islandComponent } from '@preact-mvc/atoll-island';
+import { tickerContract } from '../islands/ticker.contract';
+import { chartContract } from '../islands/chart.contract';
 import { ThemeService } from '@/services/theme.service';
-import { querySignal } from '@/lib/query';
+import { DashboardController } from './dashboard.controller';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
 import { Badge } from '@/ui/badge';
 import { Skeleton } from '@/ui/misc';
-import { Chart } from '@/ui/chart';
 import { Avatar } from '@/ui/misc';
 
 const ICONS = [DollarSign, UsersIcon, ShoppingCart, Activity];
 
-// Bundler-detectable worker entry — literal new URL so Vite sees it.
-const tickerEntry = (): WorkerLike =>
-  new Worker(new URL('../workers/ticker.worker.tsx', import.meta.url), {
-    type: 'module',
-  }) as WorkerLike;
+// Two worker threads off this main-thread page: the ticker contract
+// mounts its own worker; the chart contract mounts the dedicated chart
+// worker where echarts' SVG ops are produced.
+const Ticker = islandComponent(tickerContract);
+const Chart = islandComponent(chartContract);
 
-@Component()
+@Component({ controllers: [DashboardController] })
 export class DashboardView extends View {
-  private api = inject(FakeApi);
-  private qc = inject(QueryClient);
+  private c = inject(DashboardController);
   private theme = inject(ThemeService);
 
-  // Signal-backed queries — the observer lives on this view's scope.
-  private metrics = querySignal(this.qc, {
-    queryKey: ['metrics'],
-    queryFn: () => this.api.metrics(),
-  });
-  private revenue = querySignal(this.qc, {
-    queryKey: ['revenue'],
-    queryFn: () => this.api.revenueSeries(),
-  });
-  private activity = querySignal(this.qc, {
-    queryKey: ['activity'],
-    queryFn: () => this.api.activity(),
-  });
-
-  private lastPing = signal('');
-
   render() {
-    const dark = this.theme.resolved.value === 'dark';
+    const c = this.c;
     return (
       <div class="space-y-6">
         {/* Stat cards */}
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {this.metrics.value.isLoading
+          {c.metrics.value.isLoading
             ? [0, 1, 2, 3].map((i) => <Skeleton key={i} class="h-28" />)
-            : (this.metrics.value.data ?? []).map((m, i) => {
+            : (c.metrics.value.data ?? []).map((m, i) => {
                 const Icon = ICONS[i];
-                const up = m.delta >= 0;
+                const v = c.metricView(m);
                 return (
                   <Card key={m.label}>
                     <CardHeader class="flex flex-row items-center justify-between pb-2">
@@ -61,12 +42,10 @@ export class DashboardView extends View {
                       <Icon size={16} class="text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div class="text-2xl font-bold">
-                        {m.label === 'Revenue' ? `$${m.value.toLocaleString()}` : m.value.toLocaleString()}
-                      </div>
-                      <Badge variant={up ? 'success' : 'destructive'} class="mt-1">
-                        {up ? <TrendingUp size={12} class="mr-1" /> : <TrendingDown size={12} class="mr-1" />}
-                        {Math.abs(m.delta)}%
+                      <div class="text-2xl font-bold">{v.value}</div>
+                      <Badge variant={v.up ? 'success' : 'destructive'} class="mt-1">
+                        {v.up ? <TrendingUp size={12} class="mr-1" /> : <TrendingDown size={12} class="mr-1" />}
+                        {v.delta}
                       </Badge>
                     </CardContent>
                   </Card>
@@ -82,34 +61,15 @@ export class DashboardView extends View {
               <CardDescription>Trailing 12 months</CardDescription>
             </CardHeader>
             <CardContent>
-              {this.revenue.value.isLoading ? (
+              {c.revenue.value.isLoading ? (
                 <Skeleton class="h-64 w-full" />
               ) : (
-                <Chart
-                  dark={dark}
-                  option={{
-                    xAxis: {
-                      type: 'category',
-                      data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                      axisLine: { show: false },
-                      axisTick: { show: false },
-                    },
-                    yAxis: { type: 'value', splitLine: { lineStyle: { opacity: 0.15 } } },
-                    series: [
-                      {
-                        type: 'line',
-                        data: this.revenue.value.data,
-                        smooth: true,
-                        symbol: 'none',
-                        areaStyle: { opacity: 0.15 },
-                        lineStyle: { width: 2.5 },
-                        color: 'hsl(221 83% 53%)',
-                      },
-                    ],
-                    grid: { left: 50, right: 12, top: 12, bottom: 28 },
-                    tooltip: { trigger: 'axis' },
-                  }}
-                />
+                /* The chart island's mount div is the h-64 box, so the
+                   worker's pushed container size is honest — echarts' SVG
+                   renderer lives on the chart thread, replayed here. The
+                   dark prop rides updateProps; the island re-inits its
+                   theme on change. */
+                <Chart dark={this.theme.resolved.value === 'dark'} className="h-64 w-full" />
               )}
             </CardContent>
           </Card>
@@ -121,9 +81,9 @@ export class DashboardView extends View {
               <CardDescription>Latest events across the workspace</CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
-              {this.activity.value.isLoading
+              {c.activity.value.isLoading
                 ? [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} class="h-8" />)
-                : (this.activity.value.data ?? []).map((a) => (
+                : (c.activity.value.data ?? []).map((a) => (
                     <div key={a.id} class="flex items-start gap-3">
                       <Avatar name={a.actor} class="h-7 w-7" />
                       <div class="text-sm min-w-0">
@@ -148,14 +108,10 @@ export class DashboardView extends View {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Island
-              worker={tickerEntry}
-              app="ticker"
-              onEvent={(n, p) => (this.lastPing.value = `${n} ${JSON.stringify(p)}`)}
-            />
-            {this.lastPing.value && (
+            <Ticker onEvent={(n, p) => c.onIslandEvent(n, p)} />
+            {c.lastPing.value && (
               <div class="mt-3 text-xs text-muted-foreground">
-                emit() → shell: <code>{this.lastPing.value}</code>
+                worker → here: <code>{c.lastPing.value}</code>
               </div>
             )}
           </CardContent>

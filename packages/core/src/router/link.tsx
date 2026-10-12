@@ -12,6 +12,9 @@ export function Link(props: {
   const onClick = (e: JSX.TargetedMouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
+    // preact-router's document-level <a> interceptor routes any plain
+    // anchor click it sees — stop propagation so ours doesn't double-nav.
+    e.stopPropagation();
     router.navigate(props.to);
   };
   return (

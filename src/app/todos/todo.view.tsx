@@ -1,5 +1,9 @@
 import { Component, View, inject } from '@preact-mvc/core';
 import { TodoController } from './todo.controller';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
+import { Input } from '@/ui/input';
+import { Button } from '@/ui/button';
+import { cn } from '@/lib/cn';
 
 // View layer as a class: injection happens once at mount inside this view's
 // own injector scope. render() is a pure JSX projection — it reads signals
@@ -13,32 +17,55 @@ export class TodoView extends View {
   render() {
     const c = this.c;
     return (
-      <section>
-        <h2>Todos</h2>
-        <p>{c.remaining.value} remaining</p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            c.submit();
-          }}
-        >
-          <input
-            placeholder="What needs doing?"
-            value={c.draft.value}
-            onInput={(e) => (c.draft.value = (e.target as HTMLInputElement).value)}
-          />
-          <button type="submit">Add</button>
-        </form>
-        <ul>
-          {c.todos.value.map((t) => (
-            <li key={t.id}>
-              <label style={{ textDecoration: t.done ? 'line-through' : 'none' }}>
-                <input type="checkbox" checked={t.done} onChange={() => c.toggle(t.id)} /> {t.text}
-              </label>{' '}
-              <button onClick={() => c.remove(t.id)}>✕</button>
-            </li>
-          ))}
-        </ul>
+      <section class="max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Todos</CardTitle>
+            <CardDescription>
+              {c.remaining.value} remaining — a declared controller owns the state; the view
+              just projects signals and delegates events.
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <form
+              class="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                c.submit();
+              }}
+            >
+              <Input
+                placeholder="What needs doing?"
+                value={c.draft.value}
+                onInput={(e) => (c.draft.value = (e.target as HTMLInputElement).value)}
+              />
+              <Button type="submit">Add</Button>
+            </form>
+            <ul class="divide-y">
+              {c.todos.value.map((t) => (
+                <li key={t.id} class="flex items-center gap-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    class="h-4 w-4 cursor-pointer"
+                    checked={t.done}
+                    onChange={() => c.toggle(t.id)}
+                  />
+                  <span
+                    class={cn(
+                      'flex-1 text-sm',
+                      t.done && 'line-through text-muted-foreground',
+                    )}
+                  >
+                    {t.text}
+                  </span>
+                  <Button variant="ghost" size="icon" onClick={() => c.remove(t.id)}>
+                    ✕
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       </section>
     );
   }

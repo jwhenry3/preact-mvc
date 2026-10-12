@@ -5,6 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { Injector } from '../injector';
 import { inject } from '../injector';
 import { InjectorContext } from '../context';
+import { route as prRoute } from 'preact-router';
 import { Router, ROUTES } from './router';
 import { RouterModule, routeComponent } from './module';
 import { RouterOutlet } from './outlet';
@@ -57,12 +58,110 @@ describe('route matching', () => {
   });
 });
 
+describe('nested routes', () => {
+  const nested: Route[] = [
+    {
+      path: '/users',
+      component: () => (
+        <p>
+          users shell <RouterOutlet />
+        </p>
+      ),
+      children: [
+        // Static keys outrank params by config order — same rule as flat lists.
+        { path: 'new', component: () => <p>new user</p> },
+        { path: ':id', component: () => <p>user detail</p> },
+      ],
+    },
+    { path: '/org/:org', component: () => <p>org</p>, children: [{ path: 'team/:team', component: () => <p>team</p> }] },
+    { path: '*', component: () => <p>not found</p> },
+  ];
+
+  it('matches a chain and merges params across levels', () => {
+    const r = makeRouter(nested);
+    r.url.value = '/org/acme/team/eng';
+    const chain = r.matches.value!;
+    expect(chain).toHaveLength(2);
+    expect(chain[0].route.path).toBe('/org/:org');
+    expect(chain[1].route.path).toBe('team/:team');
+    expect(r.params.value).toEqual({ org: 'acme', team: 'eng' });
+  });
+
+  it('matches a parent alone when the tail is exhausted', () => {
+    const r = makeRouter(nested);
+    r.url.value = '/users';
+    expect(r.matches.value).toHaveLength(1);
+    expect(r.matches.value![0].route.path).toBe('/users');
+  });
+
+  it('prefers static child keys over params by config order', () => {
+    const r = makeRouter(nested);
+    r.url.value = '/users/new';
+    expect(r.matches.value![1].route.path).toBe('new');
+  });
+
+  it('falls through to * when no child claims the tail', () => {
+    const r = makeRouter(nested);
+    r.url.value = '/users/1/extra';
+    expect(r.match.value?.route.path).toBe('*');
+  });
+
+  it('nested <RouterOutlet/> renders the child match by depth', async () => {
+    const M = RouterModule.forRoot(nested, { basePath: '/' });
+    const root = new Injector();
+    const inj = createModuleInjector(M, root);
+    history.pushState(null, '', '/users/42');
+    const router = inj.get(Router);
+    router.url.value = '/users/42';
+    render(h(InjectorContext.Provider, { value: inj }, h(RouterOutlet, {})));
+    expect(await screen.findByText('user detail', { exact: false })).toBeTruthy();
+    // The parent shell renders too — outlets nest, not replace.
+    expect(screen.getByText(/users shell/)).toBeTruthy();
+  });
+});
+
 describe('navigation', () => {
   it('navigate() updates the url signal and browser history', () => {
     const r = makeRouter();
     r.navigate('/user/5');
     expect(r.url.value).toBe('/user/5');
     expect(location.pathname).toBe('/user/5');
+  });
+
+  it('navigate() goes through preact-router when a bridge Router is mounted', async () => {
+    // With the outlet's bridge up, navigate() delegates to route() — the
+    // bridge's onChange feeds url back. Same URL, same signal; the path
+    // differs only in WHO pushes history.
+    const M = RouterModule.forRoot(routes, { basePath: '/' });
+    const root = new Injector();
+    const inj = createModuleInjector(M, root);
+    history.pushState(null, '', '/');
+    const router = inj.get(Router);
+    router.url.value = '/';
+    render(h(InjectorContext.Provider, { value: inj }, h(RouterOutlet, {})));
+    await act(async () => {
+      router.navigate('/user/7');
+    });
+    expect(router.url.value).toBe('/user/7');
+    expect(location.pathname).toBe('/user/7');
+    expect(await screen.findByText('user')).toBeTruthy();
+  });
+
+  it('foreign route() calls drive our router via the bridge', async () => {
+    const M = RouterModule.forRoot(routes, { basePath: '/' });
+    const root = new Injector();
+    const inj = createModuleInjector(M, root);
+    history.pushState(null, '', '/');
+    const router = inj.get(Router);
+    router.url.value = '/';
+    render(h(InjectorContext.Provider, { value: inj }, h(RouterOutlet, {})));
+    // A route() call from outside our framework — preact-router Link, a
+    // third-party widget — resolves through the bridge into our signal.
+    await act(async () => {
+      prRoute('/user/11');
+    });
+    expect(router.url.value).toBe('/user/11');
+    expect(await screen.findByText('user')).toBeTruthy();
   });
 
   it('syncs url on popstate', () => {
@@ -91,7 +190,7 @@ describe('RouterOutlet', () => {
   }
 
   it('renders the matched route component', async () => {
-    const M = RouterModule.forRoot(routes);
+    const M = RouterModule.forRoot(routes, { basePath: '/' });
     outletWith(M, '/user/3');
     expect(await screen.findByText('user')).toBeTruthy();
   });
@@ -159,11 +258,21 @@ describe('base path', () => {
     const inj = createModuleInjector(M, new Injector());
     expect(inj.get(Router).base).toBe('/app');
   });
+
+  it('restores a static-host deep link from the 404 shim param', () => {
+    // The site's 404.html redirects /docs/<app>/<rest> to
+    // <app>/?__pmvc_path=<rest>; the Router consumes it on construction.
+    history.pushState(null, '', '/?__pmvc_path=user%2F5%3Fx%3D1');
+    const r = new Router(routes, '/');
+    expect(location.pathname).toBe('/user/5');
+    expect(r.url.value).toBe('/user/5?x=1');
+    history.pushState(null, '', '/');
+  });
 });
 
 describe('Link', () => {
   it('navigates without a page reload on click', async () => {
-    const M = RouterModule.forRoot(routes);
+    const M = RouterModule.forRoot(routes, { basePath: '/' });
     const root = new Injector();
     const inj = createModuleInjector(M, root);
     const router = inj.get(Router);

@@ -88,6 +88,68 @@ export class UserView extends View {
         injector is released.
       </p>
 
+      <h2>Nested routes</h2>
+      <p>
+        <code>children</code> match by prefix: the URL resolves as a chain
+        outermost → innermost, and each <code>&lt;RouterOutlet/&gt;</code>{' '}
+        renders one level by depth — a routed view can host its own outlet
+        and stay mounted while children swap underneath it.
+      </p>
+      <CodeBlock
+        file="app.routes.ts"
+        code={`export const routes: Route[] = [
+  {
+    path: '/settings',
+    component: SettingsShell,        // stays mounted — renders <RouterOutlet/>
+    children: [
+      { path: 'general', component: GeneralView },   // /settings/general
+      { path: 'security', component: SecurityView }, // /settings/security
+    ],
+  },
+];`}
+      />
+      <CodeBlock
+        file="settings.shell.tsx"
+        language="tsx"
+        code={`@Component()
+export class SettingsShell extends View {
+  render() {
+    return (
+      <section>
+        <h2>Settings</h2>
+        <nav>
+          <Link to="/settings/general">General</Link>
+          <Link to="/settings/security">Security</Link>
+        </nav>
+        {/* depth-1 outlet: renders whichever child matched */}
+        <RouterOutlet />
+      </section>
+    );
+  }
+}`}
+      />
+      <p>
+        <code>router.matches</code> exposes the whole chain;{' '}
+        <code>router.params</code> merges params from every level (inner
+        wins on collisions), so a child sees its parent's params too. A
+        child with <code>module</code> nests its injector under the level
+        that mounted it. A parent with children still matches when the URL
+        ends at it (<code>/settings</code> renders the shell alone); static
+        children outrank <code>:param</code> siblings by config order.
+      </p>
+
+      <h2>preact-router underneath</h2>
+      <p>
+        The router rides <code>preact-router</code>: the outlet mounts a
+        bridge that claims every URL, so navigation is one operation no
+        matter who initiates it — <code>navigate()</code> goes through{' '}
+        <code>route()</code> and updates any embedded preact-router{' '}
+        <code>&lt;Router&gt;</code>, while foreign <code>route()</code>{' '}
+        calls and plain <code>&lt;a href="/…"&gt;</code> clicks drive our
+        router back through the bridge. If app code hosts its own
+        preact-router subtree, both sides stay in sync.
+      </p>
+
       <h2>Mounted apps: basePath</h2>
       <p>
         The router derives its mount prefix from{' '}

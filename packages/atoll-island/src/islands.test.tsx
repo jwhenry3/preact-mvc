@@ -6,17 +6,55 @@
  * worker the signal lives in the worker; in-process the realms share one
  * heap, which is exactly what makes poking it a faithful out-of-task test.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { h, render } from 'preact';
 import { act } from '@testing-library/preact';
 import { fireEvent } from '@testing-library/dom';
 import { Component, View, signal, inject } from '@preact-mvc/core';
 import { Injectable } from '@preact-mvc/core';
+import { InProcessWorker } from '@atolljs/core/testing/inProcessWorker';
 import { definePolyWorker, emit } from '@preact-mvc/atoll/worker';
 import { defineViewPolyWorker, defineViewMonoWorker, viewIsland, viewIslandApp } from './adapter';
-import { createInProcessWorker, callbackProp, connectIslandWorker, mountIsland } from '@preact-mvc/atoll';
-import { Island } from './shell';
+import {
+  callbackProp,
+  connectIslandWorker,
+  defineIslandContract,
+  mountIsland,
+  z,
+} from '@preact-mvc/atoll';
+import { Island, islandComponent } from './shell';
 import type { IslandWorkerDef } from '@preact-mvc/atoll/worker';
+
+// The real Atoll harness: stub the Worker global with InProcessWorker —
+// the pool's INIT/EXECUTE_TASK protocol runs in-process against the real
+// TaskRegistry. The `def` objects below register at defineViewPolyWorker
+// call time (module-level union), so no handlerModules are needed.
+vi.stubGlobal('Worker', InProcessWorker);
+
+// In-process the worker and shell share jsdom's globals — and the islands
+// worker's instance dispatcher shadows `document`/`window`/`Element`… so
+// out-of-task reads resolve the ambient PROXY document (its docs even call
+// out that "lets test harnesses/suites restore globals by plain
+// assignment"). Capture the real jsdom globals before any worker def runs
+// and hand them back through the dispatcher's override setters after it
+// installs: instance tasks still see the active proxy doc, the driver and
+// this file see real DOM.
+const jsdomGlobals = {
+  document: globalThis.document,
+  window: globalThis.window,
+  Element: globalThis.Element,
+  Node: globalThis.Node,
+  Text: globalThis.Text,
+  Comment: globalThis.Comment,
+  HTMLMediaElement: globalThis.HTMLMediaElement,
+  customElements: globalThis.customElements,
+};
+const restoreShellGlobals = (): void => {
+  Object.assign(globalThis, jsdomGlobals);
+};
+
+const workerEntry = (): Worker =>
+  new Worker(new URL('./islands-test.worker.ts', import.meta.url), { type: 'module' });
 
 const flush = async (): Promise<void> => {
   await act(async () => {
@@ -28,9 +66,10 @@ const mountInto = (
   def: IslandWorkerDef,
   opts: Omit<Parameters<typeof mountIsland>[0], 'el' | 'worker'>,
 ) => {
+  void def; // registration already ran — the factory spawns the in-process worker
   const el = document.createElement('div');
   document.body.appendChild(el);
-  return mountIsland({ el, worker: createInProcessWorker(def), ...opts });
+  return mountIsland({ el, worker: workerEntry, ...opts });
 };
 
 // --- test island apps -----------------------------------------------------------
@@ -84,6 +123,8 @@ class GreetIsland extends View<{ name?: string }> {
 let def: IslandWorkerDef;
 beforeEach(() => {
   def = defineViewPolyWorker({
+    // registration is a module-level UNION in the shared realm — every def
+    // below adds to the same APP_REGISTRY
     apps: {
       counter: CounterIsland,
       ticker: TickerIsland,
@@ -98,6 +139,9 @@ beforeEach(() => {
       },
     },
   });
+  // The def's definePolyWorker just installed the instance dispatcher —
+  // give the jsdom globals back to the shell half of the realm.
+  restoreShellGlobals();
 });
 afterEach(() => {
   document.body.innerHTML = '';
@@ -144,11 +188,15 @@ describe('islands', () => {
     island.destroy();
   });
 
-  it('out-of-task signal writes push ops without a task call', async () => {
+  it('out-of-task signal writes flush ops without a task call', async () => {
     const island = await mountInto(def, { app: 'ticker' });
     expect(document.querySelector('.tick')!.textContent).toBe('tick 0');
     tick.value = 7;
-    await flush();
+    // Message-only transport: the 50ms poll timer fires the worker's
+    // flush() task, which drains the ops committed outside task calls.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 120));
+    });
     expect(document.querySelector('.tick')!.textContent).toBe('tick 7');
     island.destroy();
   });
@@ -195,7 +243,7 @@ describe('islands', () => {
   });
 
   it('several islands share one client — distinct instances, one worker', async () => {
-    const client = connectIslandWorker({ worker: createInProcessWorker(def) });
+    const client = connectIslandWorker({ worker: workerEntry });
     const elA = document.createElement('div');
     const elB = document.createElement('div');
     document.body.append(elA, elB);
@@ -213,9 +261,11 @@ describe('islands', () => {
     b.destroy();
   });
 
-  it('mono worker resolves its sole app regardless of the mount name', async () => {
-    const mono = defineViewMonoWorker(CounterIsland);
-    const island = await mountInto(mono, { props: { start: 3 } });
+  it('mono worker app mounts by registry name (name-blind only for a sole-app registry)', async () => {
+    // In-process the registry is a union of every def in this file, so the
+    // single-app name fallback can't kick in — mount by the app's key.
+    const mono = defineViewMonoWorker(viewIsland('mono', CounterIsland));
+    const island = await mountInto(mono, { app: 'mono', props: { start: 3 } });
     expect(document.querySelector('.inc')!.textContent).toBe('count 3');
     island.destroy();
   });
@@ -230,13 +280,13 @@ describe('islands', () => {
     ).rejects.toThrow(/callbackProp/);
   });
 
-  it('destroy tears the instance down — further updates are no-ops', async () => {
+  it('destroy tears the instance down — further updates reject', async () => {
     const island = await mountInto(def, { app: 'counter' });
     island.destroy();
     await flush();
-    island.updateProps({ start: 99 });
-    await flush();
-    expect(document.querySelector('.inc')).toBeNull();
+    // The driver drops unmount's return batch (the element is the mount
+    // site's problem), but the worker-side instance is gone — calls reject.
+    await expect(island.updateProps({ start: 99 })).rejects.toThrow(/not mounted/);
   });
 
   it('stamped app references resolve to their wire key', async () => {
@@ -248,6 +298,35 @@ describe('islands', () => {
     island.destroy();
   });
 
+  it('contract facade: islandComponent mounts with no worker prop — the contract carries the entry', async () => {
+    const contract = defineIslandContract({
+      app: 'counter',
+      props: z.object({ start: z.number().optional() }),
+      events: { five: z.object({ count: z.number() }) },
+      worker: workerEntry,
+    });
+    const Counter = islandComponent(contract);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const events: [string, unknown][] = [];
+    await act(async () => {
+      render(
+        <Counter start={8} onEvent={(n, p) => events.push([n, p])} />,
+        container,
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await flush();
+    const btn = container.querySelector('.inc')! as HTMLButtonElement;
+    expect(btn.textContent).toBe('count 8');
+    // non-shell props forward to the island as its props
+    fireEvent.click(btn);
+    await flush();
+    expect(btn.textContent).toBe('count 9');
+    render(null, container);
+    expect(events).toEqual([]);
+  });
+
   it('<Island/> component mounts and updates inside framework render', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -255,7 +334,7 @@ describe('islands', () => {
     await act(async () => {
       render(
         <Island
-          worker={createInProcessWorker(def)}
+          worker={workerEntry}
           app="counter"
           props={{ start: 4 }}
           onEvent={onEvent}

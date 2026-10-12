@@ -64,9 +64,10 @@ export class CounterView extends View {
           <tr>
             <td><code>@preact-mvc/atoll</code></td>
             <td>
-              Framework-free islands engine: the op protocol, the proxy DOM a
-              worker renders into, the worker runtime, and the main-thread
-              driver that replays ops onto real DOM.
+              Facade over <code>@atolljs/islands</code> +{' '}
+              <code>@atolljs/core</code>: the op protocol, the proxy DOM a
+              worker renders into, the worker runtime, the island contracts,
+              and the main-thread driver that replays ops onto real DOM.
             </td>
           </tr>
           <tr>

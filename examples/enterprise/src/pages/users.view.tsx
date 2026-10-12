@@ -1,9 +1,8 @@
-import { Component, View, inject, signal } from '@preact-mvc/core';
-import { QueryClient } from '@tanstack/preact-query';
+import { Component, View, inject } from '@preact-mvc/core';
 import { formatDistanceToNow } from 'date-fns';
 import { RefreshCw, Search } from 'lucide-preact';
-import { FakeApi, type User } from '@/services/fake-api.service';
-import { querySignal } from '@/lib/query';
+import { UsersController } from './users.controller';
+import type { User } from '@/services/fake-api.service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
 import { Badge } from '@/ui/badge';
 import { Input } from '@/ui/input';
@@ -17,34 +16,18 @@ const STATUS: Record<User['status'], 'success' | 'warning' | 'destructive'> = {
   suspended: 'destructive',
 };
 
-@Component()
+/**
+ * The view is a pure projection: UsersController owns the debounced
+ * search key, the query observer, and refresh — render() binds inputs to
+ * `c.*` and maps status → badge variant.
+ */
+@Component({ controllers: [UsersController] })
 export class UsersView extends View {
-  private api = inject(FakeApi);
-  private qc = inject(QueryClient);
-
-  /** Debounced search text — the query key. Typing doesn't spam the API. */
-  private search = signal('');
-  private debounceTimer?: ReturnType<typeof setTimeout>;
-
-  // Options GETTER: runs inside a scope-bound effect, so search signal
-  // writes re-key the same observer — reactive keys, no manual re-arm.
-  private users = querySignal(this.qc, () => ({
-    queryKey: ['users', this.search.value],
-    queryFn: () => this.api.users(this.search.value),
-  }));
-
-  private onSearch = (e: Event): void => {
-    const v = (e.target as HTMLInputElement).value;
-    clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => (this.search.value = v), 250);
-  };
-
-  private refresh = (): void => {
-    void this.qc.invalidateQueries({ queryKey: ['users'] });
-  };
+  private c = inject(UsersController);
 
   render() {
-    const res = this.users.value;
+    const c = this.c;
+    const res = c.users.value;
     const rows = res.data ?? [];
     return (
       <Card>
@@ -53,7 +36,7 @@ export class UsersView extends View {
             <div>
               <CardTitle>Users</CardTitle>
               <CardDescription>
-                TanStack Query through querySignal — the observer lives on this view's scope.
+                TanStack Query through querySignal — the observer lives on the controller's scope.
               </CardDescription>
             </div>
             <div class="flex items-center gap-2">
@@ -62,10 +45,10 @@ export class UsersView extends View {
                 <Input
                   class="pl-8 w-56"
                   placeholder="Search users..."
-                  onInput={this.onSearch}
+                  onInput={(e) => c.setSearch((e.target as HTMLInputElement).value)}
                 />
               </div>
-              <Button variant="outline" size="icon" onClick={this.refresh} title="Refresh">
+              <Button variant="outline" size="icon" onClick={() => c.refresh()} title="Refresh">
                 <RefreshCw size={14} class={res.isFetching ? 'animate-spin' : ''} />
               </Button>
             </div>
@@ -116,7 +99,7 @@ export class UsersView extends View {
                 {rows.length === 0 && (
                   <TableRow>
                     <TableCell class="text-center text-muted-foreground py-8">
-                      No users match "{this.search.value}"
+                      No users match "{c.search.value}"
                     </TableCell>
                   </TableRow>
                 )}

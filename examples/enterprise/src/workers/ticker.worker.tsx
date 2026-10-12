@@ -1,12 +1,13 @@
 /**
  * Worker entry — bundler-detectable (spawned with the literal
- * `new URL(..., import.meta.url)` form in the dashboard view). Hosts the
+ * `new URL(..., import.meta.url)` form in ticker.contract). Hosts the
  * island apps below; everything here runs inside the worker against the
  * proxy DOM, View classes and all.
  */
 import { Component, View, signal } from '@preact-mvc/core';
-import { defineViewPolyWorker, viewIsland } from '@preact-mvc/atoll-island/worker';
+import { defineViewPolyWorker, viewIsland, viewIslandApp } from '@preact-mvc/atoll-island/worker';
 import { emit } from '@preact-mvc/atoll-island/worker';
+import { tickerContract } from '../islands/ticker.contract';
 
 @Component()
 export class TickerIsland extends View {
@@ -52,6 +53,8 @@ export class TickerIsland extends View {
 
 export const tickerApp = viewIsland('ticker', TickerIsland);
 
+// The contract rides the app: mount/updateProps props and declared emit
+// payloads ('worker-ping') are validated against its schemas worker-side.
 export const worker = defineViewPolyWorker({
-  apps: { ticker: TickerIsland },
+  apps: { ticker: viewIslandApp(TickerIsland, { contract: tickerContract }) },
 });

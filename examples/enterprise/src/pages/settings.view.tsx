@@ -1,14 +1,13 @@
 /**
  * Forms the framework way: a declared controller owns field signals and
  * validation (zod schema parse on submit), the view binds inputs to those
- * signals. No form library needed — and none of the React form libs would
- * fit our class-first views anyway. This is the honest pattern: controller
- * + schema + signals.
+ * signals. The controller lives in settings.controller.ts; this file is
+ * the projection only.
  */
-import { Component, Controller, View, inject, signal } from '@preact-mvc/core';
-import { z } from 'zod';
+import { Component, View, inject } from '@preact-mvc/core';
 import { Check } from 'lucide-preact';
-import { ThemeService, type Theme } from '@/services/theme.service';
+import { SettingsController, type SettingsForm } from './settings.controller';
+import type { Theme } from '@/services/theme.service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
 import { Button } from '@/ui/button';
 import { Input, Label } from '@/ui/input';
@@ -16,56 +15,12 @@ import { Badge } from '@/ui/badge';
 import { Separator } from '@/ui/misc';
 import { cn } from '@/lib/cn';
 
-const schema = z.object({
-  orgName: z.string().min(2, 'Organization name must be at least 2 characters'),
-  email: z.string().email('Enter a valid email'),
-  region: z.enum(['us-east', 'eu-west', 'ap-south']),
-  notifyDeploys: z.boolean(),
-});
-
-export type SettingsForm = z.infer<typeof schema>;
-
-@Controller()
-export class SettingsController {
-  orgName = signal('Acme Inc');
-  email = signal('ops@acme.dev');
-  region = signal<SettingsForm['region']>('us-east');
-  notifyDeploys = signal(true);
-  errors = signal<Partial<Record<keyof SettingsForm, string>>>({});
-  saved = signal(false);
-  dirty = signal(false);
-
-  touch(): void {
-    this.dirty.value = true;
-    this.saved.value = false;
-  }
-
-  submit(): void {
-    const parsed = schema.safeParse({
-      orgName: this.orgName.value,
-      email: this.email.value,
-      region: this.region.value,
-      notifyDeploys: this.notifyDeploys.value,
-    });
-    if (!parsed.success) {
-      const errs: Partial<Record<keyof SettingsForm, string>> = {};
-      for (const issue of parsed.error.issues) {
-        errs[issue.path[0] as keyof SettingsForm] = issue.message;
-      }
-      this.errors.value = errs;
-      this.saved.value = false;
-      return;
-    }
-    this.errors.value = {};
-    this.saved.value = true;
-    this.dirty.value = false;
-  }
-}
-
 @Component({ controllers: [SettingsController] })
-export class SettingsView extends View {
+export class SettingsView extends View<{
+  theme?: Theme;
+  onThemeChange?: (t: Theme) => void;
+}> {
   private c = inject(SettingsController);
-  private theme = inject(ThemeService);
 
   render() {
     const c = this.c;
@@ -167,7 +122,10 @@ export class SettingsView extends View {
         <Card>
           <CardHeader>
             <CardTitle>Appearance</CardTitle>
-            <CardDescription>ThemeService — persisted, system-aware.</CardDescription>
+            <CardDescription>
+              ThemeService stays shell-side (document/matchMedia) — the theme
+              crosses the wire as a prop and the setter as a callbackProp.
+            </CardDescription>
           </CardHeader>
           <CardContent class="space-y-3">
             <Separator />
@@ -175,9 +133,9 @@ export class SettingsView extends View {
               {(['light', 'dark', 'system'] as Theme[]).map((t) => (
                 <Button
                   key={t}
-                  variant={this.theme.theme.value === t ? 'default' : 'outline'}
+                  variant={this.props.theme === t ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => (this.theme.theme.value = t)}
+                  onClick={() => this.props.onThemeChange?.(t)}
                 >
                   {t}
                 </Button>

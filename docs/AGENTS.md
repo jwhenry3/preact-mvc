@@ -8,9 +8,10 @@ and update them in the same change as the code they describe.**
 
 - `atoll/` — vendored Atoll worker-framework docs. READ-ONLY source
   material: it describes *their* implementation (`packages/islands`,
-  `packages/react-island`, `packages/angular-island`), not ours.
-  `packages/atoll` + `packages/atoll-island` are modeled on it but share
-  no code and no dependency.
+  `packages/react-island`, `packages/angular-island`), which our packages
+  now wrap directly: `@preact-mvc/atoll` is a facade over
+  `@atolljs/islands` + `@atolljs/core`, and `@preact-mvc/atoll-island` is
+  our `*-island` adapter on top of it.
 - `framework.md` — our architecture: DI, modules, views, signals, router,
   lifecycle, component metadata, ownership enforcement.
 - `islands.md` — our islands package: the op protocol, proxy DOM, worker

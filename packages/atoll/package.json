@@ -21,5 +21,9 @@
     "access": "public",
     "registry": "https://registry.npmjs.org"
   },
+  "dependencies": {
+    "@atolljs/core": "0.1.10",
+    "@atolljs/islands": "0.1.10"
+  },
   "license": "MIT"
 }

@@ -94,6 +94,61 @@ export class MetricsIsland extends View<{ source?: string }> {
 // name comes from the stamp — no string to drift out of sync.`}
         />
 
+        <h2>viewIslandApp — the contract attach</h2>
+        <p>
+          For full facade decoupling, the contract module both sides import
+          gets attached to the app at registration: mount/updateProps props
+          are validated against its schema and every declared{' '}
+          <code>emit</code> payload is checked worker-side before it goes on
+          the wire:
+        </p>
+        <CodeBlock
+          file="ticker.contract.ts"
+          language="ts"
+          code={`import { defineIslandContract, z } from '@preact-mvc/atoll-island';
+
+export const tickerContract = defineIslandContract({
+  app: 'ticker',
+  props: z.object({ source: z.string().optional() }),
+  events: { 'worker-ping': z.object({ ticks: z.number() }) },
+  worker: () =>
+    new Worker(new URL('./ticker.worker.tsx', import.meta.url), {
+      type: 'module',
+    }),
+});`}
+        />
+        <CodeBlock
+          file="ticker.worker.tsx"
+          language="tsx"
+          code={`export const worker = defineViewPolyWorker({
+  apps: {
+    ticker: viewIslandApp(TickerIsland, { contract: tickerContract }),
+  },
+});`}
+        />
+        <p>
+          <code>z</code> is Atoll's bundled schema mini-lib, re-exported so
+          no extra dependency is needed; any <code>safeParse</code>-shaped
+          schema (real zod included) satisfies <code>Schema</code>. The
+          shell then mounts <code>islandComponent(tickerContract)</code>{' '}
+          with fully typed props and events — see{' '}
+          <a href={docHref('island-shell')}>Shell &amp; mounting</a>.
+        </p>
+        <p>
+          <code>viewIsland(name, App)</code> stamps an app so shell code can
+          pass the reference itself instead of a registry string — the
+          reference carries its own name (and optional island-scoped
+          providers via{' '}
+          <code>viewIslandApp(App, {'{'} providers {'}'})</code>):
+        </p>
+        <CodeBlock
+          language="tsx"
+          code={`export const tickerApp = viewIsland('ticker', TickerIsland);
+
+// shell: <Island app={tickerApp} worker={tickerWorker} />
+// name comes from the stamp — no string to drift out of sync.`}
+        />
+
         <h2>Talking to the shell: emit()</h2>
         <CodeBlock
           code={`// worker side — any event name + structured-cloneable payload:

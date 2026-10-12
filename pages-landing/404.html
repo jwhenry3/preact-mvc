@@ -17,17 +17,31 @@
       code { background: #171c28; border: 1px solid #2a3350; border-radius: 4px; padding: 1px 6px; font-size: .9em; }
     </style>
     <script>
-      // The docs site lives at <root>/docs/<route>/. A miss one level under
-      // the docs root is probably a stale deep link — offer the docs home.
+      // SPA deep-link shim: a miss under /docs/<app>/<rest> is probably a
+      // client-side route of a mounted app (demo, enterprise, docs site
+      // routes are real files and never reach here). Redirect into the
+      // app with the path in a query param — its router restores it via
+      // replaceState on boot. Only rest>'' redirects: a bare app dir
+      // serves its own index.html, and a truly missing app lands back on
+      // this page instead of looping.
       var p = location.pathname;
-      var docsIdx = p.indexOf('/docs/');
-      var docsHome = docsIdx >= 0 ? p.slice(0, docsIdx + 6) : './docs/';
-      var home = docsIdx >= 0 ? p.slice(0, docsIdx + 1) : './';
-      document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('docs-home').href = docsHome;
-        document.getElementById('site-home').href = home;
-        document.getElementById('path').textContent = p;
-      });
+      var m = p.match(/^(\/docs\/[^/]+\/)(.+)$/);
+      if (m) {
+        location.replace(
+          m[1] + '?__pmvc_path=' + encodeURIComponent(m[2] + location.search + location.hash)
+        );
+      } else {
+        // The docs site lives at <root>/docs/<route>/. A miss one level under
+        // the docs root is probably a stale deep link — offer the docs home.
+        var docsIdx = p.indexOf('/docs/');
+        var docsHome = docsIdx >= 0 ? p.slice(0, docsIdx + 6) : './docs/';
+        var home = docsIdx >= 0 ? p.slice(0, docsIdx + 1) : './';
+        document.addEventListener('DOMContentLoaded', function () {
+          document.getElementById('docs-home').href = docsHome;
+          document.getElementById('site-home').href = home;
+          document.getElementById('path').textContent = p;
+        });
+      }
     </script>
   </head>
   <body>
@@ -35,7 +49,7 @@
       <h1>Page not found</h1>
       <p><code id="path"></code> doesn't exist in this site.</p>
       <p>
-        <a id="docs-home" href="./docs/">Browse the documentation</a> ·{' '}
+        <a id="docs-home" href="./docs/">Browse the documentation</a>&nbsp;·&nbsp;
         <a id="site-home" href="./">Back to the homepage</a>
       </p>
     </main>

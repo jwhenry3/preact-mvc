@@ -7,6 +7,7 @@
  *   // then anywhere: private q = inject(QueryClient)
  */
 import { QueryClient, type QueryClientConfig } from '@tanstack/preact-query';
+import { syncQueryClient } from './broadcast-query';
 
 export class QueryModule {
   static forRoot(config: QueryClientConfig = {}) {
@@ -17,6 +18,10 @@ export class QueryModule {
       },
       ...config,
     });
+    // BroadcastChannel sync: main-thread pages (the dashboard) fetch
+    // normally; worker-side pages/islands fetch on their own clients and
+    // hydrate this one, so a worker's fetch also fills the shell cache.
+    syncQueryClient(client);
     return {
       __module: {
         providers: [{ provide: QueryClient, useValue: client }],

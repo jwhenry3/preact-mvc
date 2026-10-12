@@ -71,10 +71,11 @@ export function Hosting() {
       <h2>Worker islands on static hosts</h2>
       <p>
         Islands need nothing special: the worker bundle is a static asset
-        fetched same-origin. No <code>SharedArrayBuffer</code>, no COOP/COEP
-        headers — unlike Atoll-style shared-memory setups, this stack's wire
-        is plain <code>postMessage</code>, which works on any static host
-        including GitHub Pages.
+        fetched same-origin, and the default transport (
+        <code>mode: 'poll'</code>) is plain <code>postMessage</code> — no{' '}
+        <code>SharedArrayBuffer</code>, no COOP/COEP headers. The opt-in push
+        mode's SAB doorbell is the only piece that would need cross-origin
+        isolation, and it's off by default for exactly this reason.
       </p>
 
       <h2>This site</h2>

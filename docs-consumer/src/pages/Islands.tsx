@@ -28,8 +28,10 @@ export function Islands() {
         Two threads, two halves of the package:{' '}
         <code>@preact-mvc/atoll-island</code> is the shell surface,{' '}
         <code>@preact-mvc/atoll-island/worker</code> is the worker entry. The
-        underlying engine (<code>@preact-mvc/atoll</code>) is framework-free —
-        this binding is what knows how to render View classes.
+        engine underneath is the real Atoll — <code>@preact-mvc/atoll</code>{' '}
+        is a thin facade over <code>@atolljs/islands</code> +{' '}
+        <code>@atolljs/core</code> (op protocol, proxy DOM, driver) — and the
+        adapter is the piece that knows how to render View classes into it.
       </p>
 
       <h2>Sixty seconds of it working</h2>
@@ -84,6 +86,49 @@ const tickerWorker = (): WorkerLike =>
         never coordinates any of it.
       </p>
 
+      <h2>The contract facade</h2>
+      <p>
+        The recommended shape fully decouples the two sides: one shared
+        module describes the island — app name, prop/event schemas, worker
+        factory — and shell and worker each import only that. The call site
+        mounts a facade component with <em>no</em> worker plumbing:
+      </p>
+      <CodeBlock
+        file="ticker.contract.ts"
+        language="ts"
+        code={`import { defineIslandContract, z } from '@preact-mvc/atoll-island';
+
+export const tickerContract = defineIslandContract({
+  app: 'ticker',
+  events: { 'worker-ping': z.object({ ticks: z.number() }) },
+  worker: () =>
+    new Worker(new URL('./ticker.worker.tsx', import.meta.url), {
+      type: 'module',
+    }),
+});`}
+      />
+      <CodeBlock
+        language="tsx"
+        side="shell"
+        code={`import { islandComponent } from '@preact-mvc/atoll-island';
+import { tickerContract } from './ticker.contract';
+
+const Ticker = islandComponent(tickerContract);
+
+// No worker prop — the contract carries the factory. onEvent narrows to
+// the declared event vocabulary, props to the declared schema.
+<Ticker onEvent={(name, payload) => log(name, payload)} />`}
+      />
+      <CodeBlock
+        language="tsx"
+        side="worker"
+        code={`// Attach the same contract worker-side: mount/updateProps props are
+// schema-validated and declared emit payloads are checked.
+export const worker = defineViewPolyWorker({
+  apps: { ticker: viewIslandApp(TickerIsland, { contract: tickerContract }) },
+});`}
+      />
+
       <h2>What an island is good for</h2>
       <ul>
         <li>
@@ -116,10 +161,17 @@ const tickerWorker = (): WorkerLike =>
           serialize mutations.
         </li>
         <li>
-          Styling the island contents is the worker app's own job (inline
-          styles or a stylesheet op) — shell CSS doesn't cross the boundary.
+          The default transport is message-only (<code>mode: 'poll'</code>).
+          The push mode's SharedArrayBuffer doorbell is faster but needs
+          cross-origin isolation headers (COOP/COEP) — which static hosts
+          like GitHub Pages can't serve.
         </li>
       </ul>
+      <p>
+        Shell CSS <em>does</em> apply to island contents: ops replay real
+        elements inside the island container, so ordinary classes (Tailwind
+        utilities included) work in worker markup.
+      </p>
 
       <p>
         Next: <a href={docHref('island-apps')}>writing island apps</a>,{' '}
