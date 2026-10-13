@@ -17,6 +17,16 @@ and update them in the same change as the code they describe.**
 - `islands.md` — our islands package: the op protocol, proxy DOM, worker
   runtime, adapter, driver, shell API, and every deliberate divergence
   from the Atoll design.
+- `blog/` — long-form articles (announcements, introductions). Markdown
+  posts with YAML frontmatter (`date`, `pinned`); open with ordinary
+  paragraphs, not the atoll Problem/Fix blockquote. Blog and marketing
+  copy style: no emojis, no em dashes (use `:` or `,`).
+- `marketing/` — platform adaptations of blog posts, one file per channel:
+  `# <Platform>: <Title>` header, a note naming the source post, a
+  `---`-delimited verbatim copy block. LinkedIn files (`<topic>.md`) are
+  plain-text copy (no markdown) ending with a `## Teaser variant` short
+  post; Dev.to files (`<topic>-devto.md`) carry dev.to frontmatter and
+  the article verbatim.
 
 The **consumer-facing docs site** is `docs-consumer/` (a Vite app), the
 GitHub Pages landing page is `pages-landing/`, and `scripts/*pages*.mjs`

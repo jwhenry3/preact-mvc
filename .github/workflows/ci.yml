@@ -75,7 +75,14 @@ jobs:
         run: node scripts/ci-install.mjs
 
       - name: Test — vitest (framework + app + islands suites)
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          files: ./coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   # Advisory audit — `npm audit` reads each lockfile, no install needed.
   # Fails on high/critical findings: a red audit job means a disclosed

@@ -15,7 +15,8 @@
     "!src/**/*.test.tsx"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@preact-mvc/atoll": "*",

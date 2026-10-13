@@ -5,6 +5,11 @@
   </picture>
 </p>
 
+
+[![CI](https://github.com/jwhenry3/preact-mvc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jwhenry3/preact-mvc/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jwhenry3/preact-mvc/graph/badge.svg?branch=main)](https://codecov.io/gh/jwhenry3/preact-mvc)
+[![Socket Badge](https://badge.socket.dev/npm/package/@preact-mvc/core)](https://badge.socket.dev/npm/package/@preact-mvc/core)
+
 # preact-mvc
 
 Angular-inspired architecture on Preact: modules, dependency injection, and

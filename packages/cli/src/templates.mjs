@@ -38,6 +38,16 @@ import preact from '@preact/preset-vite';
   resolve: {
     alias: [{ find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) }],
   },
+  // Keep @preact-mvc/* out of dep prebundling: releases >= 0.1.1 ship
+  // compiled dist/, but 0.1.0 ships .ts/.tsx sources which esbuild's
+  // optimizer compiles with the classic React pragma ("React is not
+  // defined"). Excluded deps go through vite's transform instead —
+  // correct JSX either way — and stay in one module realm with the
+  // view interceptor's patched options object (same reason the vitest
+  // inline list exists below).
+  optimizeDeps: {
+    exclude: ['@preact-mvc/core', '@preact-mvc/atoll', '@preact-mvc/atoll-island'],
+  },
   test: {
     environment: 'jsdom',
     globals: true,

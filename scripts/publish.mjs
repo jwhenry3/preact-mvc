@@ -27,10 +27,14 @@
 // (or staged, pending approval) is skipped rather than hard-failing — so
 // a partially-completed release can just be run again.
 //
-// Packages ship ./src/*.ts directly (bundler-resolved exports), like
-// atolljs — no dist build step. Stamped manifests are restored to their
-// pre-run bytes on exit (byte-for-byte, not `git checkout` — uncommitted
-// edits survive). A stamped package.json must never reach a commit.
+// Packages with a tsconfig.build.json are compiled to dist/ before
+// stamping (`npm run build` → tsc emit: .js + .d.ts). Repo exports stay
+// pointed at ./src for dev — stamped manifests rewrite exports/files/types
+// to dist so published tarballs ship compiled JS and consumers never
+// transform framework sources (the wrong-JSX-pragma / split-module-realm
+// class of bugs). Stamped manifests are restored to their pre-run bytes
+// on exit (byte-for-byte, not `git checkout` — uncommitted edits
+// survive). A stamped package.json must never reach a commit.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -138,6 +142,38 @@ if (!direct) {
   }
 }
 
+/* ── Build compiled packages ──────────────────────────────────────────────
+ * tsconfig.build.json marks a package as "ships dist". Build before
+ * stamping so `npm pack` (dry-run and real) sees the compiled tree.
+ */
+const isCompiled = (dir) => existsSync(join(dir, 'tsconfig.build.json'));
+for (const { dir } of selected) {
+  if (!isCompiled(dir)) continue;
+  const res = npm(['run', 'build'], { cwd: dir, encoding: 'utf8' });
+  if (res.status !== 0) {
+    console.error(res.stdout ?? '');
+    console.error(res.stderr ?? '');
+    console.error(`build failed in ${relative(root, dir)}`);
+    process.exit(1);
+  }
+  console.log(`built ${relative(root, dir)}/dist`);
+}
+
+// Repo exports point at ./src for dev (workspace links resolve them);
+// published tarballs ship the compiled dist/ instead. Wildcard exports
+// stay extensionless — same bundler-resolution contract as ./src — while
+// named entries get explicit types conditions.
+const distExports = (exports) =>
+  Object.fromEntries(
+    Object.entries(exports ?? {}).map(([key, v]) => {
+      if (typeof v !== 'string' || !v.startsWith('./src/')) return [key, v];
+      const rel = v.slice('./src/'.length);
+      if (rel.includes('*')) return [key, './dist/' + rel];
+      const js = './dist/' + rel.replace(/\.tsx?$/, '.js');
+      return [key, { types: js.replace(/\.js$/, '.d.ts'), default: js }];
+    }),
+  );
+
 // Stamp version + rewrite internal dep ranges to the release version.
 // Stamped manifests are stage-time artifacts: capture each original
 // before writing and restore it verbatim on the way out.
@@ -149,11 +185,19 @@ for (const { dir, pkg } of selected) {
       if (names.has(dep)) pkg[field][dep] = version;
     }
   }
-  if (!dryRun) {
-    const manifest = join(dir, 'package.json');
-    if (!stamped.has(manifest)) stamped.set(manifest, readFileSync(manifest, 'utf8'));
-    writeFileSync(manifest, JSON.stringify(pkg, null, 2) + '\n');
+  if (isCompiled(dir)) {
+    pkg.exports = distExports(pkg.exports);
+    const main = pkg.exports?.['.'];
+    if (main && typeof main === 'object' && main.types) pkg.types = main.types;
+    pkg.files = (pkg.files ?? [])
+      .filter((f) => !f.startsWith('!'))
+      .map((f) => (f === 'src' ? 'dist' : f));
   }
+  // Always write the stamped manifest — dry-run included, so `npm pack`
+  // sees the real dist/files surface — and restore it verbatim on exit.
+  const manifest = join(dir, 'package.json');
+  if (!stamped.has(manifest)) stamped.set(manifest, readFileSync(manifest, 'utf8'));
+  writeFileSync(manifest, JSON.stringify(pkg, null, 2) + '\n');
 }
 
 const restoreManifests = () => {

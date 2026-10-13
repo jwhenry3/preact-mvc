@@ -59,7 +59,12 @@ npm run publish -- <ver> # lockstep staged publish (see below)
 `scripts/publish.mjs <tag>` stamps all packages to the release version
 (repo files keep `0.0.0`), rewrites internal `@preact-mvc/*` ranges, and
 `npm stage publish`es in dep order (core → atoll → atoll-island → cli) with
-OIDC provenance. Packages ship `./src` directly — no dist build. First
+OIDC provenance. Repo exports stay `./src` for dev (workspace links
+resolve them); publish.mjs compiles `dist/` (tsc emit: `.js` + `.d.ts`)
+before staging and rewrites `exports`/`files`/`types` to `dist` — the
+published tarballs ship compiled JS, so consumers never transform
+framework sources. Packages carry `tsconfig.build.json` + a `build`
+script; `npm run build:packages` compiles all three. First
 release needs a one-time bootstrap: `npm run publish -- <ver> --direct`.
 
 ## Repo shape

@@ -31,5 +31,20 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      // The publishable surface: core + the atoll adapter packages.
+      // packages/cli is tooling, not runtime — its interactive shell
+      // (readline, process.argv guard) isn't meaningfully coverable.
+      include: ['packages/*/src/**'],
+      exclude: [
+        '**/*.{json,html,css,mjs}',
+        '**/*.test.*',
+        'packages/cli/**',
+      ],
+      // Floor slightly below the current baseline — regresses fail CI.
+      thresholds: { statements: 88, branches: 83, functions: 92, lines: 88 },
+    },
   },
 });
