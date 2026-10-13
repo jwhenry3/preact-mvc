@@ -59,7 +59,7 @@ jobs:
         env:
           # Canonical URLs (sitemap/OG tags) — set to the deployed origin.
           # Relative links don't need it; it only affects metadata.
-          DOCS_BASE_URL: ${{ vars.DOCS_BASE_URL || 'http://localhost:4190/docs/' }}
+          DOCS_BASE_URL: ${{ vars.DOCS_BASE_URL || format('https://{0}.github.io/{1}/docs/', github.repository_owner, github.event.repository.name) }}
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

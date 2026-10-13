@@ -8,8 +8,9 @@ live demo apps. This doc describes the moving parts.
 ## Layout
 
 ```
-pages-landing/      static site root: index.html, 404.html, favicon.svg.
-                    No build step; copied verbatim into dist-pages/.
+pages-landing/      static site root: index.html, 404.html, favicon.svg,
+                    social.png (the og:image share card). No build step;
+                    copied verbatim into dist-pages/.
 docs-consumer/      the docs app. `npm run build` does tsc + Vite client
                     build + SSR bundle build + prerender.mjs, emitting one
                     static HTML file per route into dist/.
@@ -38,8 +39,9 @@ The assembled tree:
 
 ```
 dist-pages/
-  index.html 404.html favicon.svg   from pages-landing/
+  index.html 404.html favicon.svg social.png  from pages-landing/
   docs/                           from docs-consumer/dist
+    social.png                    from docs-consumer/public
     demo/                         from dist/ (root app)
     enterprise/                   from examples/enterprise/dist
     v0.1.0/ v0.1.1/ …             release snapshots (docs-versions/*.tar.gz)
@@ -66,7 +68,11 @@ Atoll's docs, which ship a cross-origin-isolation shim).
   emits `dist/<route>/index.html` per route with meta injected into the
   HTML template, plus `robots.txt`, `sitemap.xml`, and `docs.js` (a tiny
   vanilla-JS nav enhancer; the emitted pages do not ship a Preact
-  runtime).
+  runtime). Every route gets `og:*`/`twitter:*` tags including
+  `summary_large_image`; `og:image`/`twitter:image` are
+  `${DOCS_BASE_URL}social.png`, which each build serves from its own
+  tree (`docs-consumer/public/social.png`), so release snapshots resolve
+  inside their own `docs/v<x.y.z>/` mount.
 - `src/components/` — `CodeBlock` (highlight.js, optional `worker`/`shell`
   side label), `DemoFrame` (dev → dev-server URL, prod → relative mount),
   `SiteHeader`.
@@ -99,8 +105,12 @@ the same dist works at any mount depth.
 `pages.yml` runs on `workflow_dispatch` or `workflow_call` (publish.yml's
 deploy-docs job): `ci-install` → `fetch-docs-versions.mjs` → build docs +
 demos → `assemble-pages.mjs` → `upload-pages-artifact` → `deploy-pages`.
-Set the `DOCS_BASE_URL` repo variable for correct canonical/sitemap URLs;
-links themselves are relative and work regardless.
+`DOCS_BASE_URL` defaults to `https://<owner>.github.io/<repo>/docs/`
+derived from `github.repository` (the `DOCS_BASE_URL` repo variable
+overrides it), so canonical/sitemap/OG image URLs are correct without
+extra setup; links themselves are relative and work regardless. The
+landing page hardcodes its own absolute OG tags since it is the site
+root and has no base-path problem.
 
 The internals docs (`docs/*.md`) are deliberately not part of the
 deployed site; they are the repo's second memory (see `docs/AGENTS.md`).

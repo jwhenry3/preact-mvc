@@ -146,8 +146,32 @@ ${mark(PURPLE, ORBIT)}
 writeFileSync(join(here, 'preactmvc-brand-light.svg'), brand('#3c1d95'));
 writeFileSync(join(here, 'preactmvc-brand-dark.svg'), brand('#e6ddff'));
 
+// social card — 1200×630 og:image. Dark panel + brand lockup centered;
+// rasterize with --window-size=1200,630 (the opaque dark panel reads on
+// light and dark chat/social themes alike).
+writeFileSync(
+  join(here, 'preactmvc-social.svg'),
+  svg(
+    '0 0 1200 630',
+    `
+  <defs><radialGradient id="bg" cx="50%" cy="45%" r="75%">
+    <stop offset="0%" stop-color="#2e1a5e"/><stop offset="100%" stop-color="#150a33"/>
+  </radialGradient></defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(100.8 151.2) scale(1.28)">
+    <g transform="translate(${100 - 250 * 0.62} ${128 - 225 * 0.62}) scale(0.62)">
+${mark(PURPLE, ORBIT)}
+    </g>
+    <text x="212" y="172" font-family="system-ui, -apple-system, sans-serif"
+          font-weight="800" font-size="96" fill="#e6ddff" letter-spacing="1">Preact<tspan fill="${PURPLE}">MVC</tspan></text>
+    <text x="216" y="225" font-family="system-ui, -apple-system, sans-serif"
+          font-weight="600" font-size="30" fill="#e6ddff" letter-spacing="2.4">ANGULAR-STYLE MVC ON PREACT</text>
+  </g>`,
+  ),
+);
+
 // monochrome mark — single-color glyph for badges/inline use; the orbit
 // is a knock-out so it works over any background.
 writeFileSync(join(here, 'preactmvc-mark.svg'), svg('100 75 300 300', markKnockout('currentColor')));
 
-console.log('wrote preactmvc-{light,dark}.svg, preactmvc-{light,dark}-t.svg, preactmvc-compact-{light,dark}.svg, preactmvc-icon{,-white}.svg, preactmvc-horizontal-{light,dark}.svg, preactmvc-brand-{light,dark}.svg, preactmvc-mark.svg');
+console.log('wrote preactmvc-{light,dark}.svg, preactmvc-{light,dark}-t.svg, preactmvc-compact-{light,dark}.svg, preactmvc-icon{,-white}.svg, preactmvc-horizontal-{light,dark}.svg, preactmvc-brand-{light,dark}.svg, preactmvc-mark.svg, preactmvc-social.svg');

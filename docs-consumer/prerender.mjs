@@ -61,9 +61,14 @@ function headBlock(route) {
     `<meta property="og:title" content="${esc(route.title)}" />`,
     `<meta property="og:description" content="${esc(route.description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
-    '<meta name="twitter:card" content="summary" />',
+    `<meta property="og:image" content="${esc(BASE)}social.png" />`,
+    '<meta property="og:image:width" content="1200" />',
+    '<meta property="og:image:height" content="630" />',
+    '<meta property="og:image:alt" content="PreactMVC — shield logo and wordmark" />',
+    '<meta name="twitter:card" content="summary_large_image" />',
     `<meta name="twitter:title" content="${esc(route.title)}" />`,
     `<meta name="twitter:description" content="${esc(route.description)}" />`,
+    `<meta name="twitter:image" content="${esc(BASE)}social.png" />`,
   ].join('\n    ');
 }
 

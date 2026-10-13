@@ -129,4 +129,5 @@ cd my-app && pmvc serve
 ```
 
 The docs site walks DI, views, signals, the router, and the islands
-contract end to end, with the demo and enterprise apps embedded live.
+contract end to end, with the demo and enterprise apps embedded live:
+[jwhenry3.github.io/preact-mvc](https://jwhenry3.github.io/preact-mvc/)
