@@ -98,6 +98,8 @@ export interface MountOptions extends IslandWorkerOptions {
   /** Devtools renderer tag ('preact-mvc'); the adapter sets it. */
   framework?: string;
   mountTimeout?: number;
+  /** This mount's destroy() leaves the client resident-but-idle. */
+  keepAlive?: boolean;
   /** A shared `connectIslandWorker` client, OR an entry this mount owns. */
   client?: IslandClient;
   worker?: WorkerLike | (() => WorkerLike) | URL;
