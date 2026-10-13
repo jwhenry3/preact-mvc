@@ -9,6 +9,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2]
+
+### `@preact-mvc/core`, `@preact-mvc/atoll`, `@preact-mvc/atoll-island`
+
+#### Added
+
+- **`sideEffects: false` in every library manifest.** Enables bundler
+  tree-shaking and npm's exports analysis (previously reported
+  "exports ES6 modules, but isn't marked side-effect free"). The only
+  import-time effect, `view.ts`'s `installViewInterop()`, is retained by
+  any real usage: `View` is imported to be extended, and `bootstrap`
+  re-invokes it via `module.ts`.
+
+### Tooling, docs, and site
+
+- **Coverage floors raised** to 95/85/92/95 after new driver and shell
+  suites covered the mount-reject and lazy-resolution paths: 114 tests,
+  ~97% statements. Codecov action bumped to v7.1.1 (node24).
+- **`pages.yml` `DOCS_BASE_URL`** — the localhost fallback meant
+  deployed canonical/`og:url`/`og:image` tags pointed at
+  `localhost:4190` whenever the repo variable was unset (it was). The
+  workflow now derives `https://<owner>.github.io/<repo>/docs/` from
+  `github.repository`; the variable still overrides.
+- **Link-preview metadata** — full Open Graph + Twitter card tags on the
+  landing page and stamped per docs route (`summary_large_image`), with
+  a generated 1200x630 `social.png` share card shipped at the site root
+  and inside every docs build (snapshots self-resolve their own copy).
+
 ## [0.1.1]
 
 ### `@preact-mvc/core`, `@preact-mvc/atoll`, `@preact-mvc/atoll-island`
