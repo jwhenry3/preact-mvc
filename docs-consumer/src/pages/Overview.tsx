@@ -114,6 +114,40 @@ export class CounterView extends View {
         </tbody>
       </table>
 
+      <h2>The whole Preact ecosystem, unchanged</h2>
+      <p>
+        <code>render()</code> returns ordinary Preact vnodes, so anything that
+        works in a Preact app works here — no adapters, no "framework
+        bindings" version of the library:
+      </p>
+      <ul>
+        <li>
+          <strong>Any Preact component</strong> — icon sets, UI kits, form
+          controls — drops straight into a view's JSX. Function components
+          keep their hooks; <code>preact/compat</code> unlocks the React
+          ecosystem the same way it does in any Preact app.
+        </li>
+        <li>
+          <strong>Any signal-aware library</strong> — the framework's signals{' '}
+          <em>are</em> <code>@preact/signals</code>, so libraries built on
+          them subscribe with zero bridging.
+        </li>
+        <li>
+          <strong>Anything else</strong> is two moves: provide the client
+          object through DI, bridge its <code>subscribe</code> into a signal.
+          DOM-bound libraries (charts, editors, maps) get a three-line
+          function-component wrapper — see{' '}
+          <a href={docHref('guide-integrations')}>Integrating libraries</a>.
+        </li>
+      </ul>
+      <p>
+        The enterprise demo proves it in practice: TanStack Query, ECharts,
+        zod, date-fns, lucide icons, and a Tailwind/shadcn component layer all
+        run through those moves. Inside worker islands the same View classes
+        render too — even ECharts runs there, emitting SVG through the proxy
+        DOM.
+      </p>
+
       <h2>And one thing neither has</h2>
       <p>
         <strong>Worker-rendered islands.</strong> A{' '}

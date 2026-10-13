@@ -10,6 +10,8 @@
 Angular-inspired architecture on Preact: modules, dependency injection, and
 decorators + MVC organization + class-based JSX views + signal reactivity.
 Optionally, worker-rendered islands that run views inside Web Workers.
+Views render as ordinary Preact vnodes, so every Preact library — and via
+`preact/compat`, much of React's — works unchanged.
 
 | Package | Role |
 |---|---|
@@ -235,6 +237,27 @@ const ctrl = useController(TodoController);  // fresh instance owned by this mou
   <Child />
 </Provide>                                    // subtree-local providers
 ```
+
+## The Preact ecosystem, unchanged
+
+`render()` returns ordinary Preact vnodes, so anything that works in a
+Preact app works here — no adapter packages:
+
+- **Any Preact component or library** drops straight into view JSX —
+  icon sets, UI kits, form controls, `preact/compat` for the React
+  ecosystem. Function components keep their hooks.
+- **Signal-aware libraries** subscribe directly: the framework's signals
+  are `@preact/signals`.
+- **Everything else** is two moves — provide the client object through DI
+  (`{ provide: QueryClient, useValue: client }`), bridge its `subscribe`
+  into a signal bound to the scope's `DestroyRef`. DOM-bound libraries
+  (charts, editors, maps) get a small function-component wrapper.
+
+`examples/enterprise/` is the proof: TanStack Query, ECharts, zod,
+date-fns, lucide, and a Tailwind/shadcn component layer, all wired
+through those moves. The same View classes render inside worker islands
+too — the demo's revenue chart is ECharts emitting SVG through the proxy
+DOM.
 
 ## Islands (worker-rendered views)
 

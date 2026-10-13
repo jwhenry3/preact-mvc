@@ -191,7 +191,7 @@
       <div class="hero">
         <img class="mark" src="./favicon.svg" alt="" />
         <h1>Preact<span class="mvc">MVC</span></h1>
-        <p class="tagline">Angular's architecture. JSX's ergonomics — modules, DI, and class views on Preact, with worker-rendered islands.</p>
+        <p class="tagline">Angular's architecture on Preact — modules, DI, class views, and worker-rendered islands, with the whole Preact ecosystem on tap.</p>
         <p class="intro-buttons">
           <a class="btn primary" href="./docs/">Get started</a>
           <a class="btn secondary" href="./docs/enterprise/">See it live</a>
@@ -283,8 +283,8 @@
             <p>Module ownership is enforced at mount: declared components refuse to mount outside their injector scope. Architecture you can't drift away from.</p>
           </div>
           <div class="card">
-            <h3>React's ergonomics</h3>
-            <p>Views are real JSX imports, not a registry. Props are <code>this.props</code>, children are <code>props.children</code>, function components interop freely.</p>
+            <h3>Every Preact library</h3>
+            <p><code>render()</code> is ordinary Preact vnodes — UI kits, hooks, <code>preact/compat</code>, TanStack Query, ECharts all drop in unchanged. Provide the client via DI; bridge <code>subscribe</code> into a signal.</p>
           </div>
           <div class="card">
             <h3>Worker islands</h3>
@@ -303,7 +303,10 @@
         ownership, MVC layering — and swaps the rest for signals and class-based
         JSX on Preact. <code>inject()</code> replaces constructor metadata,
         signals replace change detection, and worker islands push real UI off
-        the main thread. Declare the scope once, and the view tree respects it.
+        the main thread. And because views render as ordinary Preact vnodes,
+        the entire Preact ecosystem — and via <code>preact/compat</code>, much
+        of React's — drops in unchanged. Declare the scope once, and the view
+        tree respects it.
       </div>
 
       <section>
