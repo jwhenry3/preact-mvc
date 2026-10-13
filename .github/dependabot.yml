@@ -1,8 +1,24 @@
 # Keep the SHA-pinned actions current — dependabot bumps the pin AND the
 # trailing version comment together.
+#
+# Version bumps are DISABLED — `open-pull-requests-limit: 0` stops the
+# scheduled "bump x" PRs. Dependabot alerts still appear under
+# Security → Dependabot, and security-update PRs are unaffected (they're
+# governed by the repo's security-updates setting, not this file). To
+# re-enable bumps, remove the limit line.
+#
+# `cooldown` delays PRs until a release has been public for 7 days —
+# complements `min-release-age` in each project's .npmrc so a compromised
+# just-published version can't reach the tree through automation either.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
