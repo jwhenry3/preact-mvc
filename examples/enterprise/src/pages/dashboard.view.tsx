@@ -4,7 +4,6 @@ import { TrendingUp, TrendingDown, DollarSign, Users as UsersIcon, ShoppingCart,
 import { islandComponent } from '@preact-mvc/atoll-island';
 import { tickerContract } from '../islands/ticker.contract';
 import { chartContract } from '../islands/chart.contract';
-import { ThemeService } from '@/services/theme.service';
 import { DashboardController } from './dashboard.controller';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
 import { Badge } from '@/ui/badge';
@@ -13,16 +12,15 @@ import { Avatar } from '@/ui/misc';
 
 const ICONS = [DollarSign, UsersIcon, ShoppingCart, Activity];
 
-// Two worker threads off this main-thread page: the ticker contract
-// mounts its own worker; the chart contract mounts the dedicated chart
-// worker where echarts' SVG ops are produced.
+// Two threads nested under this page's own worker: each contract's worker
+// factory spawns a sub-worker from inside the dashboard worker, and their
+// ops tunnel up through this island's stream to the main thread.
 const Ticker = islandComponent(tickerContract);
 const Chart = islandComponent(chartContract);
 
 @Component({ controllers: [DashboardController] })
-export class DashboardView extends View {
+export class DashboardView extends View<{ dark?: boolean }> {
   private c = inject(DashboardController);
-  private theme = inject(ThemeService);
 
   render() {
     const c = this.c;
@@ -64,12 +62,17 @@ export class DashboardView extends View {
               {c.revenue.value.isLoading ? (
                 <Skeleton class="h-64 w-full" />
               ) : (
-                /* The chart island's mount div is the h-64 box, so the
-                   worker's pushed container size is honest — echarts' SVG
-                   renderer lives on the chart thread, replayed here. The
-                   dark prop rides updateProps; the island re-inits its
-                   theme on change. */
-                <Chart dark={this.theme.resolved.value === 'dark'} className="h-64 w-full" />
+                /* The chart sub-island's mount div is the h-64 box — the
+                   real element's measured size forwards down as the sub-
+                   worker's pushed container size, so echarts' SVG init is
+                   honest. The query result and theme ride props: 12 numbers
+                   and a boolean. `dark` arrived here as a mount prop from
+                   the shell (theme lives main-thread). */
+                <Chart
+                  dark={this.props.dark}
+                  data={c.revenue.value.data}
+                  className="h-64 w-full"
+                />
               )}
             </CardContent>
           </Card>

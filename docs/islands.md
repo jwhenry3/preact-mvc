@@ -120,7 +120,14 @@ Rules:
 
 - **Op replay** (Atoll driver): per-island `Map<nodeId, Node>` plus
   `listen` ops that attach real listeners and `dispatch` the handler id +
-  serialized `EventPayload` back to the worker. The payload also carries
+  serialized `EventPayload` back to the worker. `remove` ops tombstone the
+  subtree's map entries into a bounded (1024) detached map — re-appended
+  ids promote back, so the maps can't grow unboundedly on create/remove
+  churn (tooltip text, transient overlays) and re-append keeps working.
+  Dispatches ride an ordered queue capped at 4 in flight per island;
+  move-type events (`mousemove`/`pointermove`/`touchmove`/`drag`/`dragover`)
+  coalesce to the freshest queued position while boundary events never
+  merge, so pointer sweeps can't pile up round-trips. The payload also carries
   `zrX`/`zrY` — `clientX/Y − currentTarget.getBoundingClientRect()`
   computed on the main thread — because the proxy DOM has no measurement
   channel for worker-side coordinate math; hit-testing libraries that
@@ -135,9 +142,13 @@ Rules:
   probe fails and Preact registers the prop-sliced name `'Click'` while
   keying `dom._listeners` under it. The bridge wraps
   `ProxyElement.prototype.addEventListener`: the `listen` op carries the
-  real DOM type (`'click'`) and the wrapped handler re-tags the payload
-  with the prop-sliced name so `eventProxy`'s dict lookup resolves. (A
-  prototype `has`-trap alternative was tried and rejected: it breaks
+  real DOM type and the wrapped handler re-tags the payload with the
+  prop-sliced name so `eventProxy`'s dict lookup resolves. PascalCase
+  slices are lowercased WHOLE ('MouseLeave' → 'mouseleave',
+  'DblClick' → 'dblclick'); only the first-char decap would produce
+  'mouseLeave', a type real DOM never dispatches. All-caps
+  ('DOMContentLoaded') and lowercase types pass through. (A prototype
+  `has`-trap alternative was tried and rejected: it breaks
   `instanceof ProxyNode` on spliced-in proxies.)
 - **`sync` lane** (`adapter.tsx`): rendered handles may provide
   `sync(fn)`; the dispatch task runs the event handler through it and the
@@ -196,43 +207,70 @@ would keep `clientMounts` above zero and pin a shared worker alive.
 
 ## Worker-hosted pages (enterprise example)
 
-`examples/enterprise` pushes the pattern furthest: every routed page is
+`examples/enterprise` pushes the pattern furthest: EVERY routed page is
 an island app on its OWN worker — a heavy page can't stall a sibling's
-renders, and each worker bundles only its page's code (the dashboard's
-echarts payload stays out of the other pages' bundles). The pieces:
+renders, and each worker bundles only its page's code. The dashboard
+goes one level deeper: the page renders inside `dashboard.worker.tsx`
+and its chart and ticker islands are SUB-islands — real nested workers
+(`dashboard@1~chart@N`, `dashboard@1~ticker@N`) spawned from inside the
+dashboard worker, whose ops and events tunnel through the parent's
+stream to the main driver. The pieces:
 
-- `src/workers/<page>.worker.tsx` registers that page's apps with
-  `viewIslandApp(View, { providers })`; `src/workers/shared.ts` builds
-  the per-worker provider spine (`FakeApi` + a `QueryClient` synced over
-  BroadcastChannel). Each worker's cache is its own; broadcast sync keeps
-  the shell and sibling workers hydrated.
+- `src/workers/<page>.worker.tsx` registers each worker-hosted page's
+  apps with `viewIslandApp(View, { providers })`; `src/workers/shared.ts`
+  builds the per-worker provider spine (`FakeApi` + a `QueryClient`
+  synced over BroadcastChannel). Each worker's cache is its own; the
+  sync is key-scoped (`SHARED_QUERY_KEYS`) and delta-shaped — only the
+  query that changed is dehydrated per event, and only whitelisted key
+  prefixes cross the channel.
 - `PageWorkerHost` (service) owns one `IslandClient` PER PAGE, connected
   lazily: `clientFor(app)` maps the app name to that page's `new
   Worker(new URL(...))` literal (the factory record keeps every entry
   bundler-detectable). Route components in `routes.ts` are thin
   `() => h(WorkerPage, { app })` hosts, and `WorkerPage` mounts
-  `<Island client={host.clientFor(app)} app={app}>`. Navigating away
-  unmounts the island and its worker terminates; navigating back
-  respawns it on the cached client.
-- Shell-owned state crosses as props: `ThemeService` stays main-thread
-  (document/matchMedia/localStorage), so `theme` is a prop and the setter
-  a `callbackProp`.
-- The revenue chart runs fully worker-side: a sibling island app
-  (`revenue-chart.island.tsx`, registered as `chart` on the dashboard
-  page's worker) mounts into a `data-atoll-slot="chart"` box inside the
-  dashboard tree.
-  Its mount element is the chart box itself, so the pushed container size
-  is honest geometry (`doc.markContainer` + `doc.onResize`). echarts uses
-  its SVG renderer: every shape is a `createElementNS`/`attr`/`style` op,
-  and zrender's `ownerDocument.defaultView.getComputedStyle` resolves
-  through the worker window facade, which only exists after
-  `installDomShim(doc)` runs. The chart island observes the same
-  `['revenue']` query on the dashboard worker's `QueryClient` — one
-  providers array serves both apps, so one fetch feeds view and chart;
-  nothing crosses worker→shell for data.
-  Slot components render under a fresh `render()` root: InjectorContext
-  does not cross, pass dependencies as props; signal reads still
-  auto-subscribe.
+  `<Island client={host.clientFor(app)} app={app}>`. Every client
+  connects with `keepAlive: true`: navigating away unmounts the page
+  instance — lifecycle stops, timers clear, nested sub-workers still die
+  with their parent view — but the worker thread stays resident and
+  idle, so returning is a warm start on a live thread whose module
+  graph and QueryClient were never thrown away. The workers double as
+  lazy loaders: a page's bundle only evaluates on first spawn, and its
+  data caches stay warm for the session. All clients still terminate
+  with the app scope.
+- Sub-islands need no new plumbing: a contract's own `worker` factory
+  uses the same `new Worker(new URL(...))` literal, and when the
+  factory runs inside a worker bundle the bundler resolves it to a
+  nested worker chunk. `<Chart>`/`<Ticker>` inside `DashboardView` hit
+  `mountIsland` with a `ProxyElement` target, which delegates to the
+  registered `mountSubIsland` — the child worker's ops tunnel up and
+  replay through the parent's op stream; child `emit()` events route
+  back down to the parent's `onEvent`. Theme still lives main-thread:
+  `WorkerPage` passes `dark` as a mount prop to the dashboard island,
+  and the view forwards it to the chart sub-island as a plain prop.
+  Caveat: Safari workers cannot spawn workers — nested sub-islands need
+  a fallback mount (top-level islands) on WebKit.
+- The revenue chart (`chart.worker.tsx` + `chart.contract.ts`) is
+  props-driven: the dashboard's query result crosses the sub-island
+  boundary as `data` (a `number[]`), `dark` re-initializes the theme on
+  toggle. Its mount element is the chart box itself — the real
+  element's measured box forwards down as the sub-island's pushed
+  container size, so echarts' init gets honest geometry. echarts uses
+  its SVG renderer with modular imports (`echarts/core` + LineChart +
+  Grid + Tooltip + AxisPointer + SVGRenderer): every shape is a
+  `createElementNS`/`attr`/`style` op, and zrender's
+  `ownerDocument.defaultView.getComputedStyle` resolves through the
+  worker window facade, which only exists after `installDomShim(doc)`
+  runs. `AxisPointerComponent` is required: its view owns the
+  `globalListener` record that turns zrender `globalout` into
+  `updateAxisPointer(leave)` — without it an axis tooltip shows but
+  never hides.
+  Tooltip: use `renderMode: 'richText'` so the tooltip draws inside the
+  svg. The default `'html'` mode is a div whose `show()` writes
+  `style.cssText` and `hide()` writes `style.visibility`/`opacity`;
+  richText hides are zrender attr ops — no DOM tooltip element, no
+  style-facade interaction, less wire traffic. The island also
+  dispatches `hideTip` on container `mouseleave` as idempotent
+  insurance inside the dispatch task.
   Caveat: zrender hover state swaps (`emphasis`/`blur`/`select`) replace
   `el.style` wholesale with the state's style object, whose attrs then
   diff out via `attr` ops with `value: null`. When the state style lacks
@@ -242,18 +280,10 @@ echarts payload stays out of the other pages' bundles). The pieces:
   hover. The example sets `emphasis.disabled`/`select.disabled` since the
   emphasis look adds nothing (no symbols, same stroke). If emphasis is
   needed, give the emphasis state an explicit complete style.
-- The ticker is a *nested island*, not a slot: the dashboard mounts
-  `islandComponent(tickerContract)` inside the worker tree. The
-  component's div is a ProxyElement, so `mountIsland` takes the nested
-  path (worker/subIsland.ts registers at `/worker` module load), spawns a
-  real sub-worker from the contract's factory, and tunnels the
-  sub-island's ops up the parent instance's op stream — the page sees one
-  flat batch. Events round-trip two hops (dispatch down, `emit` up into
-  the parent instance's `onEvent`, which can re-`emit` to the page).
-  `@preact-mvc/atoll-island/worker` re-exports `Island`/`islandComponent`/
-  `lazyIsland`/`connectIslandWorker`/`mountIsland` for exactly this,
-  matching the `@atolljs/react-island/worker` convention. Platform limit:
-  nested `new Worker` works in Chrome/Firefox/Node, not Safari workers.
+- The ticker (`ticker.worker.tsx` + `ticker.contract.ts`) — same mount
+  mechanics as the chart; its `emit('worker-ping', …)` events reach the
+  dashboard controller's `onEvent` handler through the tunnel in one
+  hop.
 - Query caches sync across threads without island plumbing:
   `lib/broadcast-query.ts` mirrors TanStack's removed v4
   `broadcastQueryClient` (v5's persist-client-core takes AsyncStorage,
@@ -262,7 +292,7 @@ echarts payload stays out of the other pages' bundles). The pieces:
   with a `hydrating` flag breaking the echo loop. The shell proves it
   end-to-end: `ShellController` observes `['metrics']` with
   `queryFn: skipToken` (never fetches) yet renders revenue hydrated
-  purely from the worker's broadcasts.
+  purely from the dashboard worker's broadcasts.
 
 ## Testing
 

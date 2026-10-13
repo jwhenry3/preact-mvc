@@ -4,10 +4,11 @@
  * chart — axis, line, area, tooltip — renders on the dedicated chart
  * thread and replays into the dashboard's mount box.
  *
- * It runs its own ['revenue'] query on the worker-side QueryClient —
- * BroadcastChannel hydration means the worker's fetch also fills the
- * shell's cache, so the dashboard's skeleton gate sees the same data
- * without anything crossing the wire twice.
+ * It is PROPS-DRIVEN: the dashboard's own ['revenue'] query result crosses
+ * the wire as the `data` prop (12 numbers — nothing), which keeps
+ * QueryClient, FakeApi, and the BroadcastChannel cache bridge OUT of this
+ * worker. The worker heap is echarts + the islands runtime and nothing
+ * else.
  *
  * Geometry: the island's mount element IS the chart box, so the pushed
  * container size is honest — doc.body reports it and doc.onResize fires
@@ -15,13 +16,23 @@
  * the first setSize task calls chart.resize()).
  */
 import { Component, Controller, View, inject, type OnDestroy } from '@preact-mvc/core';
-import { QueryClient } from '@tanstack/preact-query';
-import * as echarts from 'echarts';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import { AxisPointerComponent, GridComponent, TooltipComponent } from 'echarts/components';
+import { SVGRenderer } from 'echarts/renderers';
 import zrenv from 'zrender/lib/core/env';
 import { installDomShim } from '@preact-mvc/atoll-island/worker';
 import type { ProxyElement, ProxyDocument } from '@preact-mvc/atoll-island/worker';
-import { FakeApi } from '@/services/fake-api.service';
-import { querySignal } from '@/lib/query';
+
+// Modular echarts: the worker only ever draws a line chart on SVG. The
+// full `import * as echarts from 'echarts'` drags every chart type,
+// component, and renderer into the worker bundle — this is the biggest
+// share of its heap.
+// AxisPointerComponent is not optional here: its view owns the
+// globalListener record that turns zrender 'globalout' into
+// updateAxisPointer(currTrigger:'leave') — without it an axis-trigger
+// tooltip can show but never hides when the pointer leaves.
+echarts.use([LineChart, GridComponent, TooltipComponent, AxisPointerComponent, SVGRenderer]);
 
 // At module-eval time inside a real worker, `typeof document ===
 // 'undefined'`, so zrender stamps env.worker=true and zrender.ts builds
@@ -40,14 +51,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 @Controller()
 export class RevenueChartController implements OnDestroy {
-  private api = inject(FakeApi);
-  private qc = inject(QueryClient);
-
-  readonly revenue = querySignal(this.qc, {
-    queryKey: ['revenue'],
-    queryFn: () => this.api.revenueSeries(),
-  });
-
   private el?: ProxyElement;
   private chart?: echarts.ECharts;
   private dark = false;
@@ -99,11 +102,16 @@ export class RevenueChartController implements OnDestroy {
     );
     // Mount order: render() → commit → ref.bind → init. The first sync()
     // ran before the chart existed, so apply the latest data here too —
-    // cached data never re-fires the signal, there is no second render.
-    this.apply(this.revenue.value.data);
+    // a later updateProps may never fire, there is no second render.
+    this.apply(this.lastIncoming);
   }
 
+  /** The newest data prop seen — init() replays it after (re-)init so a
+   *  dark-toggle re-init doesn't blank the chart. */
+  private lastIncoming?: number[];
+
   private apply(data: number[] | undefined): void {
+    this.lastIncoming = data;
     if (!this.chart || !data) return;
     this.lastData = data;
     this.chart.setOption({
@@ -132,8 +140,22 @@ export class RevenueChartController implements OnDestroy {
         },
       ],
       grid: { left: 50, right: 12, top: 12, bottom: 28 },
-      tooltip: { trigger: 'axis' },
+      // renderMode 'richText' draws the tooltip INSIDE the svg — the
+      // default 'html' mode is a div whose show() writes style.cssText and
+      // hide() writes style.visibility/opacity, and per-prop writes dedup
+      // against a _styleProps map cssText never updates — only the first
+      // hide ever emits. richText hides are zrender attr ops — no DOM
+      // tooltip element, no desync, less wire traffic.
+      tooltip: { trigger: 'axis', renderMode: 'richText', hideDelay: 0 },
     });
+  }
+
+  /** Container mouseleave → hide tip + axis pointer inside this dispatch
+   *  task. echarts' own globalout chain covers it too — the explicit
+   *  hideTip is idempotent insurance for leaves zrender doesn't classify
+   *  as globalout. */
+  hideTip(): void {
+    this.chart?.dispatchAction({ type: 'hideTip' });
   }
 
   onDestroy(): void {
@@ -143,14 +165,21 @@ export class RevenueChartController implements OnDestroy {
 }
 
 @Component({ controllers: [RevenueChartController] })
-export class RevenueChartIsland extends View<{ dark?: boolean }> {
+export class RevenueChartIsland extends View<{ dark?: boolean; data?: number[] }> {
   readonly c = inject(RevenueChartController);
 
   render() {
     const c = this.c;
-    // Signal read here (in-instance render scope) drives the imperative
-    // sync — the same pattern the dashboard uses for emit().
-    c.sync(c.revenue.value.data, this.props.dark === true);
-    return <div ref={c.bind} style="width:100%;height:100%" />;
+    // The props arrive via updateProps — each prop change re-renders in
+    // instance scope, and sync() only touches echarts when data/theme
+    // actually moved (reference-guarded).
+    c.sync(this.props.data, this.props.dark === true);
+    return (
+      <div
+        ref={c.bind}
+        style="width:100%;height:100%"
+        onMouseLeave={() => c.hideTip()}
+      />
+    );
   }
 }

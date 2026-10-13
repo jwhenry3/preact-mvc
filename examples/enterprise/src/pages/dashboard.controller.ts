@@ -29,7 +29,8 @@ export class DashboardController {
   });
 
   /** Last event payload from the ticker island — its emit() travels one
-   *  hop: the ticker worker's onEvent lands here on the shell. */
+   *  hop: the ticker sub-worker's onEvent lands here, inside the dashboard
+   *  worker. */
   lastPing = signal('');
 
   onIslandEvent(name: string, payload: unknown): void {

@@ -18,9 +18,9 @@ export class QueryModule {
       },
       ...config,
     });
-    // BroadcastChannel sync: main-thread pages (the dashboard) fetch
-    // normally; worker-side pages/islands fetch on their own clients and
-    // hydrate this one, so a worker's fetch also fills the shell cache.
+    // Key-scoped BroadcastChannel sync: only SHARED_QUERY_KEYS cross
+    // contexts — the dashboard's metrics/revenue/activity stay shell-local
+    // and page-worker queries never land in the shell's heap.
     syncQueryClient(client);
     return {
       __module: {

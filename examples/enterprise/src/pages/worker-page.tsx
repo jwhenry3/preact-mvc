@@ -20,6 +20,11 @@ export const WorkerPage: FunctionComponent<{ app: string }> = ({ app }) => {
   const client = host.clientFor(app);
 
   const props: Record<string, unknown> = {};
+  if (app === 'dashboard') {
+    // Theme is main-thread state — the worker's view receives it as a prop
+    // and feeds it to the chart sub-island.
+    props.dark = theme.resolved.value === 'dark';
+  }
   if (app === 'settings') {
     props.theme = theme.theme.value;
     props.onThemeChange = callbackProp((t: Theme) => (theme.theme.value = t));

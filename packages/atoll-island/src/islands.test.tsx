@@ -105,6 +105,22 @@ class TickerIsland extends View {
   }
 }
 
+// Multi-word DOM events arrive prop-sliced as PascalCase ('MouseLeave') —
+// the proxy boundary must map them to the real lowercase type
+// ('mouseleave'), not just decapitalize ('mouseLeave' never dispatches).
+const leaves = signal(0);
+
+@Component()
+class LeaveIsland extends View {
+  render() {
+    return (
+      <div class="leavebox" onMouseLeave={() => leaves.value++}>
+        hover me
+      </div>
+    );
+  }
+}
+
 @Injectable()
 class IslandGreeter {
   hi(n: string) {
@@ -129,6 +145,7 @@ beforeEach(() => {
       counter: CounterIsland,
       ticker: TickerIsland,
       greet: GreetIsland,
+      leave: LeaveIsland,
       stamp: {
         imperative: (doc, props) => {
           const d = doc.createElement('div');
@@ -198,6 +215,17 @@ describe('islands', () => {
       await new Promise((r) => setTimeout(r, 120));
     });
     expect(document.querySelector('.tick')!.textContent).toBe('tick 7');
+    island.destroy();
+  });
+
+  it('multi-word events (onMouseLeave) dispatch to the worker', async () => {
+    const before = leaves.value;
+    const island = await mountInto(def, { app: 'leave' });
+    const box = document.querySelector('.leavebox')! as HTMLElement;
+    fireEvent.mouseEnter(box);
+    fireEvent.mouseLeave(box);
+    await flush();
+    expect(leaves.value).toBe(before + 1);
     island.destroy();
   });
 

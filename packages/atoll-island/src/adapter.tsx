@@ -116,11 +116,16 @@ function installEventNameBridge(): void {
   /** element → original fn → prop-sliced type → wrapped fn */
   const bridged = new WeakMap<object, Map<EventFn, Map<string, EventFn>>>();
 
+  // Prop-sliced PascalCase → the real lowercase DOM type. Only the
+  // PascalCase shape is rewritten: 'MouseLeave' → 'mouseleave',
+  // 'DblClick' → 'dblclick'. All-caps ('DOMContentLoaded'), lowercase
+  // ('click'), and camelCase custom types pass through — lowercasing
+  // 'DOMContentLoaded' would break it the other way.
   const decap = (type: string): string =>
     type.length > 1 &&
     type[0] === type[0]!.toUpperCase() &&
     type[1] === type[1]!.toLowerCase()
-      ? type[0]!.toLowerCase() + type.slice(1)
+      ? type.toLowerCase()
       : type;
 
   type ListenerMethods = {

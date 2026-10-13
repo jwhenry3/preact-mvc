@@ -1,16 +1,15 @@
 /**
  * The chart thread — a dedicated worker for the echarts island, so SVG
  * diffing and zrender's layout never touch the main thread. It hosts one
- * app (`chart`) with the shared worker-side provider spine: its own
- * QueryClient + FakeApi, BroadcastChannel-hydrated with the shell, so one
- * ['revenue'] fetch feeds the island and no data crosses the wire.
+ * app (`chart`) with NO provider spine: the island is props-driven, so
+ * this worker carries no QueryClient, no FakeApi, and no BroadcastChannel
+ * cache bridge. Its heap is the islands runtime + modular echarts.
  */
 import {
   defineViewPolyWorker,
   viewIslandApp,
   ProxyElement,
 } from '@preact-mvc/atoll-island/worker';
-import { pageProviders } from '@/workers/shared';
 import { RevenueChartIsland } from '@/islands/revenue-chart.island';
 
 // zrender probes `canvas.getContext('2d')` for text measurement. A proxy
@@ -23,6 +22,6 @@ if (!(ProxyElement.prototype as { getContext?: unknown }).getContext) {
 
 export const worker = defineViewPolyWorker({
   apps: {
-    chart: viewIslandApp(RevenueChartIsland, { providers: pageProviders() }),
+    chart: viewIslandApp(RevenueChartIsland),
   },
 });

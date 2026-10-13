@@ -5,7 +5,8 @@
  * `islandComponent(chartContract)` with no worker plumbing at all.
  *
  * The chart has no emit vocabulary — it is a pure display island fed by
- * the worker-side revenue query.
+ * the dashboard's own ['revenue'] query result crossing as the `data`
+ * prop (structuredClone handles the number array; nothing else travels).
  *
  * Never import the `.worker.tsx` entry itself here: defining a worker
  * installs instance globals. The URL literal inside `new Worker(...)`
@@ -15,7 +16,10 @@ import { defineIslandContract, z } from '@preact-mvc/atoll-island';
 
 export const chartContract = defineIslandContract({
   app: 'chart',
-  props: z.object({ dark: z.boolean().optional() }),
+  props: z.object({
+    dark: z.boolean().optional(),
+    data: z.array(z.number()).optional(),
+  }),
   worker: () =>
     new Worker(new URL('../workers/chart.worker.tsx', import.meta.url), {
       type: 'module',

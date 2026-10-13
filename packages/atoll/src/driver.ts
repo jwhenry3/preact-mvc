@@ -54,6 +54,14 @@ export interface ConnectOptions extends IslandWorkerOptions {
    * poll, which needs no special headers.
    */
   doorbell?: boolean;
+  /**
+   * Keep the worker thread resident (but idle) when its last island
+   * destroys: the instance still unmounts — dispose hooks run, ops stop —
+   * but the thread's module graph and worker-side caches survive, so the
+   * next mount on this client is a warm start. Explicit `client.terminate()`
+   * still kills it.
+   */
+  keepAlive?: boolean;
 }
 
 /** One island client = one dedicated worker. Islands mounted with `client:`
