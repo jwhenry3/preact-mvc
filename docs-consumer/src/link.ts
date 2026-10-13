@@ -13,6 +13,10 @@ export function setRouteDepth(depth: number) {
   currentDepth = depth;
 }
 
+export function routeDepth() {
+  return currentDepth;
+}
+
 /** `../` × the current page's depth: resolves to the docs site root. */
 export function docsRootHref() {
   return '../'.repeat(currentDepth);

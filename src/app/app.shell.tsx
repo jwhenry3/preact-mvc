@@ -31,9 +31,7 @@ export class AppShell extends View {
         {/* Sidebar */}
         <aside class="w-60 shrink-0 border-r bg-card flex flex-col">
           <div class="h-14 flex items-center px-4 border-b">
-            <div class="h-7 w-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold mr-2">
-              P
-            </div>
+            <img src="/favicon.svg" alt="" class="h-7 w-7 mr-2" />
             <div class="min-w-0">
               <div class="font-semibold">preact-mvc</div>
               <div class="text-xs text-muted-foreground truncate">{this.title}</div>

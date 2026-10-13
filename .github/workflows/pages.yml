@@ -46,6 +46,14 @@ jobs:
       - name: Install dependencies
         run: node scripts/ci-install.mjs
 
+      # Pull docs-v*.tar.gz release assets into docs-versions/ so the
+      # assemble step mounts them under docs/v<x.y.z>/ and versions.json
+      # lists them. Warns + continues when no releases carry snapshots.
+      - name: Fetch versioned docs snapshots
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/fetch-docs-versions.mjs
+
       - name: Build and assemble Pages artifact
         run: node scripts/build-pages.mjs
         env:

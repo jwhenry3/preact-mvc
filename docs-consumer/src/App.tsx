@@ -5,6 +5,7 @@ import { docHref, setRouteDepth } from './link';
 import { metaFor } from './routeMeta';
 import { Overview } from './pages/Overview';
 import { Quickstart } from './pages/Quickstart';
+import { Cli } from './pages/Cli';
 import { Di } from './pages/Di';
 import { Modules } from './pages/Modules';
 import { Views } from './pages/Views';
@@ -37,6 +38,7 @@ const SECTIONS: { label: string; routes: Route[] }[] = [
     routes: [
       { id: 'overview', label: 'Overview', page: () => <Overview /> },
       { id: 'quickstart', label: 'Quickstart', page: () => <Quickstart /> },
+      { id: 'cli', label: 'CLI', page: () => <Cli /> },
     ],
   },
   {

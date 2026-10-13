@@ -58,7 +58,7 @@ npm run publish -- <ver> # lockstep staged publish (see below)
 `.github/workflows/publish.yml` — on GitHub Release: test gate, then
 `scripts/publish.mjs <tag>` stamps all packages to the release version
 (repo files keep `0.0.0`), rewrites internal `@preact-mvc/*` ranges, and
-`npm stage publish`es in dep order (core → atoll → atoll-island) with
+`npm stage publish`es in dep order (core → atoll → atoll-island → cli) with
 OIDC provenance. Packages ship `./src` directly — no dist build. First
 release needs a one-time bootstrap: `npm run publish -- <ver> --direct`.
 
@@ -76,6 +76,9 @@ packages/atoll-island/ @preact-mvc/atoll-island — the *-island adapter:
                       `.` entry = <Island/>/islandComponent/lazyIsland
                       shell surface, `./worker` = viewIslandApp/
                       defineViewPolyWorker renderer
+packages/cli/         @preact-mvc/cli — `pmvc` bin: new / generate /
+                      serve / build / test / add / update. Dependency-free
+                      .mjs (ships runnable JS — a bin can't be .ts).
 src/app/              demo app — todos/counter/hello/standalone/islands
 src/ui/ src/lib/      shared design system: Tailwind v4 + shadcn tokens,
                       cn() + CVA components (same skin as enterprise)

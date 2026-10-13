@@ -78,3 +78,53 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # fallback until all packages have OIDC trust
         run: node scripts/publish.mjs "${{ github.event.release.tag_name }}"
+
+  # Immutable docs snapshot for the release tag — uploaded as a
+  # docs-v<x.y.z>.tar.gz release asset. The Pages workflow downloads these
+  # assets and mounts them under docs/v<x.y.z>/ (see
+  # fetch-docs-versions.mjs + assemble-pages.mjs), so the deployed site's
+  # version switcher stays in lock step with releases. Runs after `publish`
+  # so a failed staging never ships docs for a release that didn't land.
+  docs-snapshot:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh release upload
+    steps:
+      # Release events check out the tag's ref — the snapshot is built from
+      # exactly the commit the release points at.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            docs-consumer/package-lock.json
+            examples/enterprise/package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/ci-install.mjs
+
+      - name: Build docs snapshot tarball
+        run: node scripts/snapshot-docs.mjs "${{ github.event.release.tag_name }}"
+
+      - name: Attach snapshot to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" docs-*.tar.gz --clobber
+
+  # Deploy the assembled docs site to GitHub Pages — the reusable workflow
+  # from pages.yml. Runs after docs-snapshot so this release's tarball is
+  # fetched and mounted under docs/v<x.y.z>/ in the same deployment.
+  # Checkout happens on the tag ref, so the site builds from exactly the
+  # commit the release points at (matching the snapshot it mounts).
+  deploy-docs:
+    needs: docs-snapshot
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    secrets: inherit
+    uses: ./.github/workflows/pages.yml

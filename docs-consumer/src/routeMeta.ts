@@ -11,6 +11,8 @@ const ROUTE_DESC: Record<string, string> = {
     'preact-mvc is a frontend framework combining Angular-style modules, DI, and decorators with class-based JSX views on Preact, signal reactivity, and worker-rendered islands.',
   quickstart:
     'Install preact-mvc and boot your first app: a module, a view class, a controller, and a route in ten minutes.',
+  cli:
+    'The pmvc CLI: pmvc new scaffolds an app, pmvc generate scaffolds views, controllers, services, modules, and islands, with serve, build, test, add, and update.',
   di:
     'Hierarchical dependency injection: provider forms, scopes, InjectionToken, inject() in field initializers, providedIn root, and DestroyRef.',
   modules:

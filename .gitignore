@@ -5,10 +5,13 @@ node_modules/
 dist/
 dist-ssg/
 dist-pages/
+dist-snapshot/
 *.tsbuildinfo
 
-# Package tarballs (scripts/publish.mjs)
+# Package tarballs (scripts/publish.mjs) + docs snapshot archives
 *.tgz
+docs-*.tar.gz
+docs-versions/
 
 # Test / coverage
 coverage/

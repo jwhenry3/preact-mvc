@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/preactmvc-dark-t.svg" width="380">
+    <img alt="PreactMVC" src="assets/preactmvc-light-t.svg" width="380">
+  </picture>
+</p>
+
 # preact-mvc
 
 Angular-inspired architecture on Preact: modules, dependency injection, and
@@ -9,8 +16,17 @@ Optionally, worker-rendered islands that run views inside Web Workers.
 | `@preact-mvc/core` | The framework: `View`, `inject()`, `@Module`/`@Component`/`@Injectable`/`@Controller`, signals, `DestroyRef`, router |
 | `@preact-mvc/atoll` | Facade over `@atolljs/islands` + `@atolljs/core`: op protocol, proxy DOM, worker runtime, main-thread driver |
 | `@preact-mvc/atoll-island` | The `*-island` adapter: `<Island/>`/`islandComponent`/`lazyIsland` on the shell, `viewIslandApp`/`defineViewPolyWorker` on the worker |
+| `@preact-mvc/cli` | The `pmvc` binary: `new`, `generate`, `serve`/`build`/`test`, `add`, `update` |
 
 ## Quick start
+
+```bash
+npm install -g @preact-mvc/cli   # the pmvc binary
+pmvc new my-app --islands        # scaffold a routed app (+ worker islands)
+cd my-app && pmvc serve
+```
+
+Or by hand:
 
 ```tsx
 // main.tsx

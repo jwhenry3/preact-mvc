@@ -1,27 +1,61 @@
-/* Dark-only site: the palette below is the single theme. */
+/* Themed after the Preact site (preactjs.com): light-by-default with a
+   prefers-color-scheme dark variant; code panels stay dark in both —
+   the same treatment their docs give snippets. */
 :root {
-  color-scheme: dark;
-  --bg: #0d1017;
-  --panel: #171c28;
-  --border: #2a3350;
-  --text: #e8eaf6;
-  --bodytext: #b9bde0;
-  --muted: #8a90b8;
-  --accent: #8b9cf9;
-  --btn: #1d2436;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #f4f4f4;
+  --sidebar: #fafafa;
+  --border: #e5e5e5;
+  --text: #444444;
+  --bodytext: #444444;
+  --heading: #000000;
+  --muted: #777777;
+  --accent: #673ab8;
+  --btn: #673ab8;
+  --code-bg: #101725;
+  --code-inline: #e4e4e4;
+  --quote-bg: #ebf6ff;
+  --quote-border: #5aa8ff;
+  --side-worker-ink: #8f61e1;
+  --side-worker-tint: rgba(103, 58, 184, 0.06);
+  font-family: system-ui, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #242424;
+    --panel: #1c2027;
+    --sidebar: #1a1a1a;
+    --border: #3f3f3f;
+    --text: #cccccc;
+    --bodytext: #cccccc;
+    --heading: #ffffff;
+    --muted: #999999;
+    --accent: #ae80ff;
+    --code-bg: #1c2027;
+    --code-inline: #404040;
+    --quote-bg: #152038;
+    --quote-border: #1069cc;
+    --side-worker-ink: #ae80ff;
+    --side-worker-tint: rgba(174, 128, 255, 0.09);
+  }
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0; color: var(--text);
-  background:
-    radial-gradient(1200px 700px at 50% -10%, #1d2540 0%, transparent 60%),
-    radial-gradient(900px 600px at 85% 110%, #161b33 0%, transparent 55%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-code { font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace; font-size: 0.9em; }
+pre, code {
+  font-family: 'source-code-pro', Menlo, Consolas, Monaco, 'Andale Mono',
+    'Courier New', monospace;
+  font-size: 0.9em;
+}
 
 .shell { display: flex; flex-direction: column; min-height: 100vh; }
 .shell-body { display: flex; flex: 1; min-width: 0; }
@@ -66,10 +100,39 @@ code { font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace; font
 }
 .site-tabs a:hover { color: var(--text); background: var(--panel); }
 .site-tabs a.active { color: var(--accent); background: var(--panel); }
+/* Version select: right-packed against the external links; the auto margin
+   lives here so tabs stay left and select+links cluster on the right. */
+.version-switch {
+  appearance: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.version-switch:hover { color: var(--text); }
+.version-switch[hidden] { display: none; }
+.site-ext { margin-left: auto; display: flex; gap: 4px; }
+/* A visible select owns the auto margin so select+links cluster right;
+   when it's hidden (no snapshots yet) the links pin right themselves. */
+.version-switch:not([hidden]) { margin-left: auto; }
+.version-switch:not([hidden]) ~ .site-ext { margin-left: 0; }
+.site-ext a {
+  padding: 5px 11px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.site-ext a:hover { color: var(--accent); }
 
 .sidebar {
   width: 240px;
   flex-shrink: 0;
+  background: var(--sidebar);
   border-right: 1px solid var(--border);
   padding: 20px 14px;
   position: sticky;
@@ -110,6 +173,7 @@ code { font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace; font
   color: var(--muted);
 }
 
+article h1, article h2, article h3, article h4 { color: var(--heading); }
 article h1 { margin-top: 0; font-size: 1.9rem; }
 article h2 { margin-top: 36px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 article h3 { margin-top: 24px; }
@@ -117,23 +181,20 @@ article p, article li { line-height: 1.65; color: var(--bodytext); }
 article a { color: var(--accent); }
 article .lead { font-size: 1.05rem; color: var(--text); }
 article code:not(pre code) {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--code-inline);
   border-radius: 4px;
   padding: 1px 5px;
 }
 article blockquote {
   margin: 14px 0; padding: 10px 16px;
-  border-left: 3px solid var(--border);
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  border-left: 3px solid var(--quote-border);
+  background: var(--quote-bg);
 }
 article blockquote p { margin: 4px 0; }
 article hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
 
 .doc-table {
   border-collapse: collapse; width: 100%; margin: 12px 0;
-  border-radius: 8px;
   background: color-mix(in srgb, var(--panel) 70%, transparent);
 }
 .doc-table th, .doc-table td {
@@ -147,14 +208,14 @@ article hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; 
 .doc-table .muted { color: var(--muted); }
 
 figure.code {
-  margin: 14px 0; border: 1px solid var(--border); border-radius: 8px;
+  margin: 14px 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  background: var(--code-bg);
 }
 /* Which side of the island wire a snippet runs on. */
 figure.code[data-side="worker"] {
-  --side-tint: rgba(124, 140, 248, 0.07);
-  --side-ink: #8b9cf9;
+  --side-tint: var(--side-worker-tint);
+  --side-ink: var(--side-worker-ink);
 }
 figure.code[data-side="shell"] {
   --side-tint: rgba(76, 195, 138, 0.06);
@@ -171,22 +232,24 @@ figure.code[data-side="module"] {
 figure.code[data-side] {
   background:
     linear-gradient(var(--side-tint), var(--side-tint)),
-    color-mix(in srgb, var(--panel) 70%, transparent);
+    var(--code-bg);
 }
 .code-file {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  background: color-mix(in srgb, var(--panel) 55%, transparent);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 6px 14px;
   font-size: 0.78rem;
   color: var(--muted);
-  font-family: Consolas, monospace;
+  font-family: 'source-code-pro', Menlo, Consolas, Monaco, 'Andale Mono',
+    'Courier New', monospace;
 }
 .code-side {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: system-ui, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -214,9 +277,7 @@ figure.code pre.hljs {
   justify-content: space-between;
   align-items: center;
   background: color-mix(in srgb, var(--panel) 70%, transparent);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--border);
   padding: 6px 14px;
   font-size: 0.8rem;
   color: var(--muted);
@@ -225,8 +286,8 @@ figure.code pre.hljs {
 .demo-frame iframe {
   width: 100%;
   height: 560px;
-  border: 1px solid var(--border);
-  border-radius: 0 0 8px 8px;
+  border: none;
+  display: block;
   background: var(--bg);
 }
 .demo-hint { font-size: 0.8rem; color: var(--muted); }

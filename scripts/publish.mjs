@@ -172,7 +172,12 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 }
 
 // Dependency order — a package publishes after every internal dep it needs.
-const order = ['@preact-mvc/core', '@preact-mvc/atoll', '@preact-mvc/atoll-island'];
+const order = [
+  '@preact-mvc/core',
+  '@preact-mvc/atoll',
+  '@preact-mvc/atoll-island',
+  '@preact-mvc/cli',
+];
 const sorted = [...selected].sort(
   (a, b) =>
     (order.indexOf(a.pkg.name) === -1 ? 99 : order.indexOf(a.pkg.name)) -

@@ -16,13 +16,22 @@ docs-consumer/      the docs app. `npm run build` does tsc + Vite client
 scripts/
   pages-lib.mjs     the demo mount table (docs/demo, docs/enterprise).
   assemble-pages.mjs  builds dist-pages/: landing + docs + demo mounts +
-                    .nojekyll.
+                    versioned snapshots + versions.json + .nojekyll.
   build-pages.mjs   builds every app (demos with --base=./) then assembles.
   serve-pages.mjs   build + serve dist-pages on :4190.
   serve-static.mjs  dependency-free static file server (index.html +
                     404.html semantics).
+  snapshot-docs.mjs builds a release docs tarball (docs-v<x.y.z>.tar.gz)
+                    with VITE_DOCS_VERSION stamped in.
+  fetch-docs-versions.mjs
+                    downloads docs-*.tar.gz release assets into
+                    docs-versions/ via the gh CLI.
 .github/workflows/pages.yml
-                    manual (workflow_dispatch) Pages deploy.
+                    manual (workflow_dispatch) + workflow_call Pages deploy.
+.github/workflows/publish.yml
+                    release pipeline: stage packages → docs-snapshot job
+                    attaches the tarball to the release → deploy-docs calls
+                    pages.yml.
 ```
 
 The assembled tree:
@@ -33,6 +42,8 @@ dist-pages/
   docs/                           from docs-consumer/dist
     demo/                         from dist/ (root app)
     enterprise/                   from examples/enterprise/dist
+    v0.1.0/ v0.1.1/ …             release snapshots (docs-versions/*.tar.gz)
+    versions.json                 manifest the version switcher reads
   .nojekyll
 ```
 
@@ -85,13 +96,48 @@ the same dist works at any mount depth.
 
 ## Deploy
 
-`pages.yml` is manual-only (`workflow_dispatch`): build docs + demos →
-`assemble-pages.mjs` → `upload-pages-artifact` → `deploy-pages`. Set the
-`DOCS_BASE_URL` repo variable for correct canonical/sitemap URLs; links
-themselves are relative and work regardless.
+`pages.yml` runs on `workflow_dispatch` or `workflow_call` (publish.yml's
+deploy-docs job): `ci-install` → `fetch-docs-versions.mjs` → build docs +
+demos → `assemble-pages.mjs` → `upload-pages-artifact` → `deploy-pages`.
+Set the `DOCS_BASE_URL` repo variable for correct canonical/sitemap URLs;
+links themselves are relative and work regardless.
 
 The internals docs (`docs/*.md`) are deliberately not part of the
 deployed site; they are the repo's second memory (see `docs/AGENTS.md`).
+
+## Versioned docs snapshots
+
+The docs version switcher mirrors the atoll design: each release ships an
+immutable copy of the whole docs tree (pages + demo mounts) as a
+`docs-v<x.y.z>.tar.gz` release asset, and Pages mounts it at
+`docs/v<x.y.z>/`.
+
+- `publish.yml`'s `docs-snapshot` job runs `snapshot-docs.mjs <tag>`,
+  which rebuilds the docs tree with `VITE_DOCS_VERSION=v<x.y.z>` and
+  `DOCS_BASE_URL=<pages origin>/docs/<ver>/`, tars `mountDocsTree`'s
+  output, and `gh release upload`s it.
+- `prerender.mjs` reads `VITE_DOCS_VERSION` into
+  `<meta name="preact-mvc:version">` on every page and adds
+  `robots: noindex` on snapshot builds so immutable copies never outrank
+  latest.
+- `docs.js` derives the live version from the mount path (the `v<x.y.z>`
+  segment right before the route), computes the docs root as
+  `'../' × (depth + (versioned ? 1 : 0))`, and drives the
+  `select.version-switch` in `SiteHeader`: fetch `versions.json` from the
+  docs root, repopulate options, navigate by segment swap preserving the
+  current route. The select stays `hidden` until a manifest proves
+  snapshots exist.
+- `assemble-pages.mjs` extracts each `docs-versions/docs-v<x.y.z>.tar.gz`
+  into `dist-pages/docs/v<x.y.z>/` and writes `versions.json` (newest
+  first) at the docs root. Because `versions.json` is fetched from the
+  live root, a page inside an old snapshot still learns about newer
+  releases.
+- `fetch-docs-versions.mjs` pulls the release assets via `gh` before
+  assemble; without `gh` it warns and exits 0 so local `serve:pages`
+  still works.
+- Snapshot pages resolve their own assets inside the snapshot (every
+  `../` stays within `docs/v<x.y.z>/`); only the Home tab and the version
+  select cross the boundary.
 
 ## Invariants
 

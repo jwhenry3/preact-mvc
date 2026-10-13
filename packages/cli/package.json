@@ -1,0 +1,20 @@
+{
+  "name": "@preact-mvc/cli",
+  "version": "0.0.0",
+  "description": "Project scaffolding and maintenance CLI for preact-mvc: new, generate, serve/build/test, add, update",
+  "type": "module",
+  "bin": {
+    "pmvc": "./src/cli.mjs",
+    "preact-mvc": "./src/cli.mjs"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "MIT"
+}

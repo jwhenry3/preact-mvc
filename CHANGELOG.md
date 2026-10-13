@@ -121,6 +121,32 @@ elements in the shell app.
 - **Island events.** `emit(name, payload)` on the worker side reaches
   shell `onEvent` handlers, validated against the contract schema.
 
+### `@preact-mvc/cli`
+
+The `pmvc` binary: project scaffolding and maintenance, dependency-free
+Node.
+
+#### Added
+
+- **`pmvc new <dir>`** — scaffolds a routed application (AppModule,
+  AppShell, routes, views, jsdom test stubs, decorators-ready tsconfig,
+  vite + vitest config). `--islands` adds a contract-first worker island;
+  `--tailwind` wires Tailwind v4; `--skip-install`, `--skip-tests`,
+  `--dry-run`, `--force`.
+- **`pmvc generate|g`** — `view`, `controller`, `service`, `module`, and
+  `island` schematics emitting repo-conventional files (`*.view.tsx`,
+  `*.controller.ts`, `*.service.ts`, `*.module.ts`, `*.contract.ts` +
+  `*.worker.tsx`) with `--path`, `--skip-tests`, `--dry-run`, `--force`.
+- **`pmvc serve` / `build` / `test`** — pass-throughs to the project's
+  vite/vitest binaries; `build` typechecks first (like `ng build`).
+- **`pmvc add`** — integration recipes: `tailwind` (deps + vite plugin
+  patch + styles) and `islands` (atoll packages).
+- **`pmvc update`** — bumps `@preact-mvc/*` dep ranges to latest or
+  `--to <version>`, with `--include-atoll`, `--dry-run`,
+  `--skip-install`, and a migration hook point for future code mods.
+- **`pmvc version`** — CLI version plus the detected framework dep ranges
+  of the enclosing project.
+
 ### Examples and docs
 
 - `examples/enterprise/` reference app: routed pages hosted in

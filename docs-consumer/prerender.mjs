@@ -24,6 +24,13 @@ const ssgDir = join(root, 'dist-ssg');
 // Canonical base — override with DOCS_BASE_URL for the deployed site.
 const BASE = (process.env.DOCS_BASE_URL ?? 'http://localhost:4190/docs/').replace(/\/?$/, '/');
 
+// Release snapshots (docs/v<x.y.z>/ mounts) set VITE_DOCS_VERSION to the
+// version dir name — e.g. 'v0.1.0' — stamping it into <meta
+// preact-mvc:version> so docs.js can resolve paths across the extra
+// segment, plus a noindex so the immutable copy never outranks the live
+// docs. Latest builds emit 'latest'.
+const DOCS_VERSION = process.env.VITE_DOCS_VERSION || 'latest';
+
 const ssgEntry = readdirSync(ssgDir).find((f) => /\.(m?js)$/.test(f));
 if (!ssgEntry) {
   console.error('prerender: dist-ssg bundle missing — run `vite build --ssr src/ssg.tsx` first');
@@ -46,6 +53,8 @@ function headBlock(route) {
   const url = route.id === 'overview' ? BASE : `${BASE}${route.id}/`;
   return [
     `<meta name="preact-mvc:route" content="${route.id}" />`,
+    `<meta name="preact-mvc:version" content="${esc(DOCS_VERSION)}" />`,
+    ...(DOCS_VERSION === 'latest' ? [] : ['<meta name="robots" content="noindex" />']),
     `<link rel="canonical" href="${esc(url)}" />`,
     '<meta property="og:type" content="article" />',
     '<meta property="og:site_name" content="preact-mvc" />',
@@ -82,16 +91,55 @@ function buildPage(route) {
     );
 }
 
-// The only client script — sidebar scroll persistence, legacy #/ redirects,
-// and revealing the active nav link. Plain DOM, no framework.
+// The only client script — version switcher, sidebar scroll persistence,
+// legacy #/ redirects, and revealing the active nav link. Plain DOM, no
+// framework.
 const DOCS_JS = `(function () {
   var meta = document.querySelector('meta[name="preact-mvc:route"]');
   var route = meta ? meta.content : 'overview';
   var depth = route === 'overview' ? 0 : route.split('/').filter(Boolean).length;
+  var verMeta = document.querySelector('meta[name="preact-mvc:version"]');
+  // The mount dir is ground truth — the version segment sits right before
+  // the route segments (docs/v<x.y.z>/<route>/), so it works under any
+  // Pages base prefix.
+  var pathSeg = location.pathname.split('/').filter(Boolean);
+  var verSeg = pathSeg[pathSeg.length - 1 - depth];
+  var ver = /^v\\d+\\.\\d+\\.\\d+$/.test(verSeg || '')
+    ? verSeg
+    : verMeta ? verMeta.content : 'latest';
+  // Versioned snapshots sit one segment deeper (docs/v0.1.0/<route>/), so
+  // climbing out to the docs root takes an extra '../' on those pages.
+  var root = '../'.repeat(depth + (ver === 'latest' ? 0 : 1));
+  var routePath = depth ? location.pathname.split('/').filter(Boolean).slice(-depth).join('/') + '/' : '';
   if (location.hash.indexOf('#/') === 0) {
     var id = location.hash.slice(2);
     location.replace('../'.repeat(depth) + (id === 'overview' ? '' : id + '/'));
     return;
+  }
+  // Version switcher — route-preserving segment swap between the latest
+  // docs (docs/<route>/) and snapshots (docs/<ver>/<route>/). The option
+  // list is refreshed from versions.json at the live docs root, so
+  // snapshots built before a release still learn about it.
+  var verSel = document.querySelector('select.version-switch');
+  if (verSel) {
+    fetch(root + 'versions.json').then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (manifest) {
+      if (!manifest || !manifest.versions) return;
+      var list = ['latest'].concat(manifest.versions);
+      verSel.innerHTML = '';
+      list.forEach(function (v) {
+        var o = document.createElement('option');
+        o.value = o.textContent = v;
+        verSel.appendChild(o);
+      });
+      verSel.value = ver;
+      verSel.hidden = list.length < 2;
+    }).catch(function () {});
+    verSel.addEventListener('change', function () {
+      var v = verSel.value;
+      location.href = root + (v === 'latest' ? '' : v + '/') + routePath;
+    });
   }
   var sidebar = document.querySelector('.sidebar');
   if (sidebar) {
