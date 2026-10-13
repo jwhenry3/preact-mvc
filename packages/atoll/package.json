@@ -25,5 +25,10 @@
     "@atolljs/core": "0.1.11",
     "@atolljs/islands": "0.1.11"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jwhenry3/preact-mvc",
+    "directory": "packages/atoll"
+  },
   "license": "MIT"
 }
