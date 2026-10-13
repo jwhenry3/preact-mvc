@@ -31,6 +31,12 @@ import type { IslandWorkerDef } from '@preact-mvc/atoll/worker';
 // call time (module-level union), so no handlerModules are needed.
 vi.stubGlobal('Worker', InProcessWorker);
 
+// keepAlive needs @atolljs/islands ≥0.1.12 (isKeepAliveClient). Gate the
+// warm-worker test on the installed copy actually carrying the flag so CI
+// on 0.1.11 skips instead of failing.
+const keepAliveSupported =
+  typeof (await import('@atolljs/islands')).isKeepAliveClient === 'function';
+
 // In-process the worker and shell share jsdom's globals — and the islands
 // worker's instance dispatcher shadows `document`/`window`/`Element`… so
 // out-of-task reads resolve the ambient PROXY document (its docs even call
@@ -289,37 +295,40 @@ describe('islands', () => {
     b.destroy();
   });
 
-  it('keepAlive: destroy unmounts the instance but leaves the worker resident for warm remount', async () => {
-    const client = connectIslandWorker({ worker: workerEntry, keepAlive: true });
-    const spawned = (): { terminated: boolean } => {
-      const created = InProcessWorker.created;
-      return created[created.length - 1] as { terminated: boolean };
-    };
-    const elA = document.createElement('div');
-    document.body.append(elA);
-    const a = await mountIsland({ el: elA, client, app: 'counter', props: { start: 1 } });
-    expect(elA.querySelector('.inc')!.textContent).toBe('count 1');
+  it.runIf(keepAliveSupported)(
+    'keepAlive: destroy unmounts the instance but leaves the worker resident for warm remount',
+    async () => {
+      const client = connectIslandWorker({ worker: workerEntry, keepAlive: true });
+      const spawned = (): { terminated: boolean } => {
+        const created = InProcessWorker.created;
+        return created[created.length - 1] as { terminated: boolean };
+      };
+      const elA = document.createElement('div');
+      document.body.append(elA);
+      const a = await mountIsland({ el: elA, client, app: 'counter', props: { start: 1 } });
+      expect(elA.querySelector('.inc')!.textContent).toBe('count 1');
 
-    a.destroy();
-    // The instance tears down but the thread must stay up — keepAlive
-    // survives the last unmount.
-    await vi.waitFor(() => expect(elA.querySelector('.inc')).toBeNull());
-    expect(spawned().terminated).toBe(false);
+      a.destroy();
+      // The instance tears down but the thread must stay up — keepAlive
+      // survives the last unmount.
+      await vi.waitFor(() => expect(elA.querySelector('.inc')).toBeNull());
+      expect(spawned().terminated).toBe(false);
 
-    // A remount lands on the same resident worker — no respawn.
-    const first = spawned();
-    const elB = document.createElement('div');
-    document.body.append(elB);
-    const b = await mountIsland({ el: elB, client, app: 'counter', props: { start: 7 } });
-    expect(elB.querySelector('.inc')!.textContent).toBe('count 7');
-    expect(spawned()).toBe(first);
-    b.destroy();
-    // Let the unmount round-trip settle before the explicit terminate —
-    // terminating mid-flight rejects the call as WorkerCrashedError.
-    await vi.waitFor(() => expect(elB.querySelector('.inc')).toBeNull());
-    client.terminate();
-    expect(spawned().terminated).toBe(true);
-  });
+      // A remount lands on the same resident worker — no respawn.
+      const first = spawned();
+      const elB = document.createElement('div');
+      document.body.append(elB);
+      const b = await mountIsland({ el: elB, client, app: 'counter', props: { start: 7 } });
+      expect(elB.querySelector('.inc')!.textContent).toBe('count 7');
+      expect(spawned()).toBe(first);
+      b.destroy();
+      // Let the unmount round-trip settle before the explicit terminate —
+      // terminating mid-flight rejects the call as WorkerCrashedError.
+      await vi.waitFor(() => expect(elB.querySelector('.inc')).toBeNull());
+      client.terminate();
+      expect(spawned().terminated).toBe(true);
+    },
+  );
 
   it('mono worker app mounts by registry name (name-blind only for a sole-app registry)', async () => {
     // In-process the registry is a union of every def in this file, so the
