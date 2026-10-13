@@ -18,6 +18,10 @@ Optionally, worker-rendered islands that run views inside Web Workers.
 Views render as ordinary Preact vnodes, so every Preact library — and via
 `preact/compat`, much of React's — works unchanged.
 
+<p align="center">
+  <img alt="Angular's architecture converges with Preact's freedom in PreactMVC" src="assets/preactmvc-convergence.png" width="1100">
+</p>
+
 | Package | Role |
 |---|---|
 | `@preact-mvc/core` | The framework: `View`, `inject()`, `@Module`/`@Component`/`@Injectable`/`@Controller`, signals, `DestroyRef`, router |
