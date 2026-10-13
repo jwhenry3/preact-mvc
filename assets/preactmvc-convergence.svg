@@ -55,7 +55,7 @@
     <text x="88" y="272" font-family="system-ui, -apple-system, sans-serif"
           font-weight="700" font-size="13" fill="#f87171" letter-spacing="2.5">TRADE-OFFS</text>
     <g font-family="system-ui, -apple-system, sans-serif" font-size="17" fill="#b7a8dd">
-      <rect x="80" y="277" width="460" height="26" rx="6" fill="url(#rowNeg)"/><use href="#cross" transform="translate(91 286) scale(1.1)"/><text x="110" y="296">RxJS learning curve</text>
+      <rect x="80" y="277" width="460" height="26" rx="6" fill="url(#rowNeg)"/><use href="#cross" transform="translate(91 286) scale(1.1)"/><text x="110" y="296">Proprietary patterns, steep curve</text>
       <rect x="80" y="305" width="460" height="26" rx="6" fill="url(#rowNeg)"/><use href="#cross" transform="translate(91 314) scale(1.1)"/><text x="110" y="324">Ceremony &amp; boilerplate</text>
       <rect x="80" y="333" width="460" height="26" rx="6" fill="url(#rowNeg)"/><use href="#cross" transform="translate(91 342) scale(1.1)"/><text x="110" y="352">Rigid component patterns</text>
     </g>
