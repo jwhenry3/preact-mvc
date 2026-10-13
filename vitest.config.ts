@@ -44,7 +44,7 @@ export default defineConfig({
         'packages/cli/**',
       ],
       // Floor slightly below the current baseline — regresses fail CI.
-      thresholds: { statements: 88, branches: 83, functions: 92, lines: 88 },
+      thresholds: { statements: 95, branches: 85, functions: 92, lines: 95 },
     },
   },
 });
