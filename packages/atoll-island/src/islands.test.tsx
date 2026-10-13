@@ -33,9 +33,11 @@ vi.stubGlobal('Worker', InProcessWorker);
 
 // keepAlive needs @atolljs/islands ≥0.1.12 (isKeepAliveClient). Gate the
 // warm-worker test on the installed copy actually carrying the flag so CI
-// on 0.1.11 skips instead of failing.
+// on 0.1.11 skips instead of failing. The cast keeps the typecheck green
+// on versions without the export.
 const keepAliveSupported =
-  typeof (await import('@atolljs/islands')).isKeepAliveClient === 'function';
+  typeof (await import('@atolljs/islands') as Record<string, unknown>)['isKeepAliveClient'] ===
+  'function';
 
 // In-process the worker and shell share jsdom's globals — and the islands
 // worker's instance dispatcher shadows `document`/`window`/`Element`… so
