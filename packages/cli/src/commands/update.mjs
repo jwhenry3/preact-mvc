@@ -24,7 +24,7 @@ import * as T from '../templates.mjs';
 
 function project() {
   const found = findProjectRoot();
-  if (!found) fail('not inside a preact-mvc project (no @preact-mvc/core dependency found)');
+  if (!found) fail('not inside a PreactMVC project (no @preact-mvc/core dependency found)');
   return found;
 }
 

@@ -8,9 +8,9 @@
 
 const ROUTE_DESC: Record<string, string> = {
   overview:
-    'preact-mvc is a frontend framework combining Angular-style modules, DI, and decorators with class-based JSX views on Preact, signal reactivity, and worker-rendered islands.',
+    'PreactMVC is a frontend framework combining Angular-style modules, DI, and decorators with class-based JSX views on Preact, signal reactivity, and worker-rendered islands.',
   quickstart:
-    'Install preact-mvc and boot your first app: a module, a view class, a controller, and a route in ten minutes.',
+    'Install PreactMVC and boot your first app: a module, a view class, a controller, and a route in ten minutes.',
   cli:
     'The pmvc CLI: pmvc new scaffolds an app, pmvc generate scaffolds views, controllers, services, modules, and islands, with serve, build, test, add, and update.',
   di:
@@ -50,7 +50,7 @@ const ROUTE_DESC: Record<string, string> = {
   'demo-enterprise':
     'Live demo: the enterprise example — Tailwind + shadcn UI, TanStack Query, zod forms, ECharts, and a worker island.',
   hosting:
-    'Deploying preact-mvc apps: static hosting, history-router fallbacks, basePath for mounted apps, and GitHub Pages notes.',
+    'Deploying PreactMVC apps: static hosting, history-router fallbacks, basePath for mounted apps, and GitHub Pages notes.',
 };
 
 export interface RouteMeta {
@@ -66,9 +66,9 @@ export function metaFor(id: string, label: string): RouteMeta {
       ? `${id[0].toUpperCase()}${id.slice(1).replace(/-/g, ' ')} overview`
       : label;
   return {
-    title: `preact-mvc docs: ${titleLabel}`,
+    title: `PreactMVC docs: ${titleLabel}`,
     description:
       ROUTE_DESC[id] ??
-      'preact-mvc documentation: modules, DI, class-based JSX views, signals, and worker-rendered islands.',
+      'PreactMVC documentation: modules, DI, class-based JSX views, signals, and worker-rendered islands.',
   };
 }

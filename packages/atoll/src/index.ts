@@ -8,7 +8,7 @@
  * `callbackProp`, `islandApp`. Worker side (import in worker entries):
  * the `./worker` subpath re-exports `@atolljs/islands/worker` —
  * `definePolyWorker`/`defineMonoWorker`, `emit`, instance scope. The
- * preact-mvc adapter and `<Island/>` shell components live in
+ * PreactMVC adapter and `<Island/>` shell components live in
  * `@preact-mvc/atoll-island`.
  */
 export { islandApp, islandAppNameOf } from '@atolljs/islands';

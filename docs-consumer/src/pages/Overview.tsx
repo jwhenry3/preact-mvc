@@ -4,7 +4,7 @@ import { docHref } from '../link';
 export function Overview() {
   return (
     <article>
-      <h1>preact-mvc</h1>
+      <h1>PreactMVC</h1>
       <p class="lead">
         A frontend framework that takes Angular's architecture and renders it
         with React's ergonomics: modules, dependency injection, and decorators
@@ -18,7 +18,7 @@ export function Overview() {
         providers, injectors that scope services, decorators that declare
         intent, an MVC split between views and controllers. React got{' '}
         <em>rendering</em> right — components are values, JSX composes freely,
-        and imports resolve identity instead of a template registry. preact-mvc
+        and imports resolve identity instead of a template registry. PreactMVC
         keeps both: you write JSX with ordinary imports, and organize it with
         modules and DI.
       </p>
@@ -152,7 +152,7 @@ export class CounterView extends View {
       <p>
         <strong>Worker-rendered islands.</strong> A{' '}
         <code>&lt;Island app="ticker" worker={'{...}'} /&gt;</code> mounts a
-        real preact-mvc view tree inside a Web Worker — the same View classes,
+        real PreactMVC view tree inside a Web Worker — the same View classes,
         signals, and DI — while the shell sees an ordinary element that ticks,
         emits events, and never blocks the main thread. See{' '}
         <a href={docHref('islands')}>Islands</a>.

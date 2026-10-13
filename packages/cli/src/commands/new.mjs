@@ -1,5 +1,5 @@
 /**
- * `pmvc new <dir>` — scaffold a preact-mvc application, the `ng new`
+ * `pmvc new <dir>` — scaffold a PreactMVC application, the `ng new`
  * equivalent. Flags: --islands, --tailwind, --skip-install,
  * --skip-tests, -d/--dry-run, --force (overwrite existing files).
  */
@@ -119,7 +119,7 @@ export function cmdNew(argv) {
     );
   }
 
-  log(`\nScaffolding a preact-mvc app in ${root}\n`);
+  log(`\nScaffolding a PreactMVC app in ${root}\n`);
   for (const [rel, contents] of Object.entries(files)) {
     writeFile(root, rel, contents, opts);
   }

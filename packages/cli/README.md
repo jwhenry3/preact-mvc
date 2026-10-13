@@ -5,9 +5,9 @@
 [![Socket Badge](https://badge.socket.dev/npm/package/@preact-mvc/cli)](https://badge.socket.dev/npm/package/@preact-mvc/cli)
 
 The `pmvc` binary — scaffolding, generators, dev/build/test delegation,
-and dependency maintenance for preact-mvc projects.
+and dependency maintenance for PreactMVC projects.
 
-**[preact-mvc — CLI documentation](https://jwhenry3.github.io/preact-mvc/docs/cli/)**
+**[PreactMVC — CLI documentation](https://jwhenry3.github.io/preact-mvc/docs/cli/)**
 
 ## Install
 

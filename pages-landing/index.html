@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="preact-mvc — Angular-style modules and DI, class-based JSX views on Preact, signal reactivity, and worker-rendered islands." />
+    <meta name="description" content="PreactMVC — Angular-style modules and DI, class-based JSX views on Preact, signal reactivity, and worker-rendered islands." />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#673ab8" />
     <link rel="canonical" href="https://jwhenry3.github.io/preact-mvc/" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="preact-mvc" />
-    <meta property="og:title" content="preact-mvc — modules, DI &amp; class views on Preact" />
+    <meta property="og:site_name" content="PreactMVC" />
+    <meta property="og:title" content="PreactMVC — modules, DI &amp; class views on Preact" />
     <meta property="og:description" content="Angular-style modules and DI, class-based JSX views on Preact, signal reactivity, and worker-rendered islands." />
     <meta property="og:url" content="https://jwhenry3.github.io/preact-mvc/" />
     <meta property="og:image" content="https://jwhenry3.github.io/preact-mvc/social.png" />
@@ -17,10 +17,10 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="PreactMVC — shield logo and wordmark" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="preact-mvc — modules, DI &amp; class views on Preact" />
+    <meta name="twitter:title" content="PreactMVC — modules, DI &amp; class views on Preact" />
     <meta name="twitter:description" content="Angular-style modules and DI, class-based JSX views on Preact, signal reactivity, and worker-rendered islands." />
     <meta name="twitter:image" content="https://jwhenry3.github.io/preact-mvc/social.png" />
-    <title>preact-mvc — modules, DI &amp; class views on Preact</title>
+    <title>PreactMVC — modules, DI and class views on Preact</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <style>
       :root {
@@ -146,6 +146,7 @@
       section h2.head { font-size: 1.9rem; margin: 0 0 10px; letter-spacing: -0.01em; color: var(--heading); }
       section .sub { color: var(--text); line-height: 1.65; max-width: 640px; margin: 0 0 30px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+      .convergence { display: block; width: 100%; max-width: 920px; margin: 10px auto 0; border-radius: 12px; border: 1px solid var(--border); }
       .card {
         padding: 18px 20px; background: var(--panel);
       }
@@ -189,7 +190,7 @@
   <body>
     <header>
       <a class="brand" href="./">
-        <img src="./logo-white.svg" alt="preact-mvc logo" />
+        <img src="./logo-white.svg" alt="PreactMVC logo" />
         <span class="name">PREACT<span>MVC</span></span>
       </a>
       <nav>
@@ -241,6 +242,12 @@
       </div>
 
       <section>
+        <p class="eyebrow">The convergence</p>
+        <h2 class="head">Angular's architecture, Preact's freedom</h2>
+        <img class="convergence" src="./preactmvc-convergence.png" alt="Angular strengths and trade-offs on one side, React and Preact strengths and trade-offs on the other, converging into PreactMVC: modules and dependency injection, MVC controllers and lifecycle, signal reactivity, JSX views on Preact, class views plus function components, and the pmvc CLI" />
+      </section>
+
+      <section>
         <p class="eyebrow">The stack</p>
         <h2 class="head">One injector tree, class views on top</h2>
         <p class="sub">
@@ -289,7 +296,7 @@
       </section>
 
       <section>
-        <p class="eyebrow">Why preact-mvc</p>
+        <p class="eyebrow">Why PreactMVC</p>
         <h2 class="head">Structure without the template compiler</h2>
         <div class="grid">
           <div class="card">
@@ -312,7 +319,7 @@
       </section>
 
       <div class="mission">
-        <strong>Mission: enterprise structure for the JSX era.</strong> preact-mvc
+        <strong>Mission: enterprise structure for the JSX era.</strong> PreactMVC
         keeps the parts of Angular that scaled — injectors, modules, declared
         ownership, MVC layering — and swaps the rest for signals and class-based
         JSX on Preact. <code>inject()</code> replaces constructor metadata,
@@ -347,7 +354,7 @@
     </main>
 
     <footer>
-      <span>preact-mvc — MIT licensed.</span>
+      <span>PreactMVC — MIT licensed.</span>
       <span class="fill"></span>
       <a href="https://github.com/jwhenry3/preact-mvc">GitHub</a>
       <a href="https://github.com/jwhenry3/preact-mvc/issues">Issues</a>

@@ -33,7 +33,7 @@ export class AppShell extends View {
           <div class="h-14 flex items-center px-4 border-b">
             <img src="/favicon.svg" alt="" class="h-7 w-7 mr-2" />
             <div class="min-w-0">
-              <div class="font-semibold">preact-mvc</div>
+              <div class="font-semibold">PreactMVC</div>
               <div class="text-xs text-muted-foreground truncate">{this.title}</div>
             </div>
           </div>

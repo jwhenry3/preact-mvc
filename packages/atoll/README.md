@@ -12,7 +12,7 @@ stream back over `postMessage` as ops the main-thread driver replays as
 real DOM. Nothing in this package knows about the framework — that's what
 `@preact-mvc/atoll-island` adds.
 
-**[preact-mvc — islands documentation](https://jwhenry3.github.io/preact-mvc/docs/islands/)**
+**[PreactMVC — islands documentation](https://jwhenry3.github.io/preact-mvc/docs/islands/)**
 
 ## Install
 

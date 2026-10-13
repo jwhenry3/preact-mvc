@@ -104,7 +104,7 @@ save-exact=true
 
 export const T_README = `# %%NAME%%
 
-A [preact-mvc](https://github.com/jwhenry3/preact-mvc) application —
+A [PreactMVC](https://github.com/jwhenry3/preact-mvc) application —
 Angular-style modules, DI, and MVC on class-based JSX views rendered by
 Preact, with signal reactivity.
 

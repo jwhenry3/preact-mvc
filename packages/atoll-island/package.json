@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "preact-mvc island adapter: <Island/> shell components + Preact renderer for @preact-mvc/atoll worker islands",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",

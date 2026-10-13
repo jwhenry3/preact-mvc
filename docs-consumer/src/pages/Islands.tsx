@@ -6,7 +6,7 @@ export function Islands() {
     <article>
       <h1>Islands</h1>
       <p class="lead">
-        Worker-rendered UI islands: real preact-mvc view trees — View classes,
+        Worker-rendered UI islands: real PreactMVC view trees — View classes,
         signals, DI, lifecycle — running inside a Web Worker, streamed to the
         shell DOM over a serialized op protocol. The main thread stays free;
         the island looks and behaves like an ordinary element.

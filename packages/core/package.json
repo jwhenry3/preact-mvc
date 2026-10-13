@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Angular-inspired modules/DI/decorators + class-based JSX views rendered by Preact + signal reactivity",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json",

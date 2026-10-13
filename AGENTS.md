@@ -1,4 +1,4 @@
-# AGENTS.md — preact-mvc
+# AGENTS.md — PreactMVC
 
 A greenfield frontend framework: Angular-inspired modules/DI/decorators +
 MVC organization + class-based JSX views rendered by Preact + signal

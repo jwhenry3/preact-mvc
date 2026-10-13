@@ -20,7 +20,7 @@ export function Cli() {
 npx @preact-mvc/cli <command>`}
       />
       <p>
-        The binary is <code>pmvc</code> (with <code>preact-mvc</code> as a
+        The binary is <code>pmvc</code> (with <code>PreactMVC</code> as a
         longer alias). It is dependency-free Node — it must run before a
         project has <code>node_modules</code> at all.
       </p>

@@ -16,7 +16,7 @@ instance lifecycle, worker definers, task transport, and driver are
 - **`@preact-mvc/atoll-island`** (`packages/atoll-island`) — the
   `*-island` adapter package. `.` = shell surface (`<Island/>`,
   `islandComponent`, `lazyIsland`) plus re-exports of the driver/mount
-  API; `./worker` = the preact-mvc renderer (`viewIslandApp`,
+  API; `./worker` = the PreactMVC renderer (`viewIslandApp`,
   `viewIsland`, `defineViewPolyWorker`, `defineViewMonoWorker`) plus
   re-exports of `emit`/instance scope so worker entries need no direct
   `@preact-mvc/atoll` import.

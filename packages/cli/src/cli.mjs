@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pmvc — the preact-mvc CLI. Angular-CLI-shaped: new / generate /
+ * pmvc — the PreactMVC CLI. Angular-CLI-shaped: new / generate /
  * serve / build / test / add / update / version / docs.
  *
  * Dependency-free on purpose: the CLI must run before a project has
@@ -13,7 +13,7 @@ import { cmdNew } from './commands/new.mjs';
 import { cmdGenerate } from './commands/generate.mjs';
 import { cmdBuild, cmdServe, cmdTest } from './commands/run.mjs';
 import { cmdAdd, cmdUpdate } from './commands/update.mjs';
-const HELP = `pmvc — the preact-mvc CLI
+const HELP = `pmvc — the PreactMVC CLI
 
 Usage: pmvc <command> [args] [flags]
 

@@ -9,7 +9,7 @@ decorators, hierarchical dependency injection, class-based `View`
 components, controllers, an injector-scoped router, and signal reactivity
 via `@preact/signals` — all over plain JSX, with no template compiler.
 
-**[preact-mvc — documentation](https://jwhenry3.github.io/preact-mvc/docs/overview/)**
+**[PreactMVC — documentation](https://jwhenry3.github.io/preact-mvc/docs/overview/)**
 
 ## Install
 

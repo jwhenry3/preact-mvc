@@ -161,7 +161,7 @@ proxy DOM, worker runtime, and main-thread driver.
 
 ### `@preact-mvc/atoll-island`
 
-The `*-island` adapter: mounts worker-hosted preact-mvc views as ordinary
+The `*-island` adapter: mounts worker-hosted PreactMVC views as ordinary
 elements in the shell app.
 
 #### Added

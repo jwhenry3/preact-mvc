@@ -65,7 +65,7 @@ export type IslandWorkerDef = IslandWorkerDefinition;
 /**
  * Enter `key`'s instance scope, returning the previous key for restore —
  * a named pair around `setActiveInstance` (which returns the prev itself),
- * used by the preact-mvc adapter's out-of-task render scoping.
+ * used by the PreactMVC adapter's out-of-task render scoping.
  */
 export const enterInstance = (key: string): string => setActiveInstance(key);
 /** Restore the scope `enterInstance` returned (`''` when there was none). */

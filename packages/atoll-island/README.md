@@ -11,7 +11,7 @@ component. In the worker, `viewIslandApp` + `defineViewPolyWorker` render
 `View` classes (or any component) against the proxy DOM, so island views
 get the same DI, modules, lifecycle, and signals as main-thread views.
 
-**[preact-mvc — island documentation](https://jwhenry3.github.io/preact-mvc/docs/island-apps/)**
+**[PreactMVC — island documentation](https://jwhenry3.github.io/preact-mvc/docs/island-apps/)**
 
 ## Install
 

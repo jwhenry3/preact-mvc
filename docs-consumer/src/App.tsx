@@ -120,7 +120,7 @@ export function App({ route }: { route?: string }) {
 
   useEffect(() => {
     document.title = notFound
-      ? 'preact-mvc docs, page not found'
+      ? 'PreactMVC docs, page not found'
       : metaFor(shown.id, shown.label).title;
     // Keep the active link in view: mirrors the same reveal in docs.js for
     // the prerendered site (which runs no Preact).
@@ -171,7 +171,7 @@ export function App({ route }: { route?: string }) {
             shown.page()
           )}
           <footer class="site-footer">
-            <span>preact-mvc — MIT licensed</span>
+            <span>PreactMVC — MIT licensed</span>
           </footer>
         </main>
       </div>

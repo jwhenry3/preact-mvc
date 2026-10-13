@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Framework-free worker-rendered islands: op protocol, proxy DOM, worker runtime, main-thread driver",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",

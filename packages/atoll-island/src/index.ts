@@ -1,7 +1,7 @@
 /**
  * `@preact-mvc/atoll-island` — the `*-island` package's shell surface
  * (docs/atoll/islands-frameworks.md): mount a worker-hosted island tree as
- * an ordinary element in a preact-mvc app. The worker-side renderer
+ * an ordinary element in a PreactMVC app. The worker-side renderer
  * (viewIslandApp, defineViewPolyWorker) lives in the `./worker` entry.
  *
  * The facade pattern: a contract module (`defineIslandContract`) names the

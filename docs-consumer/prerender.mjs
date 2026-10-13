@@ -57,7 +57,7 @@ function headBlock(route) {
     ...(DOCS_VERSION === 'latest' ? [] : ['<meta name="robots" content="noindex" />']),
     `<link rel="canonical" href="${esc(url)}" />`,
     '<meta property="og:type" content="article" />',
-    '<meta property="og:site_name" content="preact-mvc" />',
+    '<meta property="og:site_name" content="PreactMVC" />',
     `<meta property="og:title" content="${esc(route.title)}" />`,
     `<meta property="og:description" content="${esc(route.description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
