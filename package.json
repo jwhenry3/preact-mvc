@@ -44,7 +44,7 @@
     "tailwind-merge": "^2.6.1"
   },
   "devDependencies": {
-    "@atolljs/core": "0.1.11",
+    "@atolljs/core": "0.1.13",
     "@preact/preset-vite": "^2.9.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/preact": "^3.2.4",

@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@atolljs/core": "0.1.11",
+    "@atolljs/core": "0.1.13",
     "@preact-mvc/atoll": "file:../../packages/atoll",
     "@preact-mvc/atoll-island": "file:../../packages/atoll-island",
     "@preact-mvc/core": "file:../../packages/core",

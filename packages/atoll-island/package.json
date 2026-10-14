@@ -25,8 +25,8 @@
     "preact": "^10.24.0"
   },
   "devDependencies": {
-    "@atolljs/core": "0.1.11",
-    "@atolljs/islands": "0.1.11"
+    "@atolljs/core": "0.1.13",
+    "@atolljs/islands": "0.1.13"
   },
   "publishConfig": {
     "access": "public",
