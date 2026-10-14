@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.3]
+
+### `@preact-mvc/core`, `@preact-mvc/atoll`, `@preact-mvc/atoll-island`
+
+#### Changed
+
+- **`@atolljs/*` bumped to `0.1.13`.** AtollJS now ships compiled
+  `dist/` (`.js` + `.d.ts`) instead of `.ts` sources, so consumers no
+  longer need their toolchain to compile the islands engine
+  transitively. Applies to `@preact-mvc/atoll`,
+  `@preact-mvc/atoll-island`, and the enterprise example.
+
 ## [0.1.2]
 
 ### `@preact-mvc/core`, `@preact-mvc/atoll`, `@preact-mvc/atoll-island`
