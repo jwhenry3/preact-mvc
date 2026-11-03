@@ -1,3 +1,5 @@
+import { isController, getInjectableMeta } from './decorators';
+
 export type Type<T> = new (...args: any[]) => T;
 
 export class InjectionToken<T> {
@@ -132,7 +134,7 @@ export class Injector {
 
   has(token: Token<any>): boolean {
     if (this.records.has(token)) return true;
-    if ((token as any).__controller) return true;
+    if (isController(token)) return true;
     if (this.parent) return this.parent.has(token);
     return this.isRootProvided(token);
   }
@@ -149,7 +151,7 @@ export class Injector {
     }
     // Controllers are transient unless explicitly provided: one instance per
     // requesting scope, so a view always gets its own controller.
-    if ((token as any).__controller) {
+    if (isController(token)) {
       this.provide(token as Type<any>);
       return this.resolveRecord(token, this.records.get(token)!);
     }
@@ -180,8 +182,7 @@ export class Injector {
   }
 
   private isRootProvided(token: Token<any>): boolean {
-    const meta = (token as any).__injectable as { providedIn?: 'root' } | undefined;
-    return meta?.providedIn === 'root';
+    return getInjectableMeta(token)?.providedIn === 'root';
   }
 
   instantiate<T>(cls: Type<T>, ...args: any[]): T {

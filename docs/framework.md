@@ -50,7 +50,8 @@ signals they read (effects run once immediately at construction).
 - `class X extends View<P>` — `render()` returns JSX. `this.props` is
   available from field initializers onward: the host constructs views as
   `inj.instantiate(cls, props)` so props exist during construction.
-- Mount path: `options.vnode` sees a `View` subclass → swaps in a host
+- Mount path: `options.vnode` sees the `__view` stamp (a static every View
+  subclass inherits) → swaps in a host
   component → at mount the host creates `new Injector(parent, 'view X')`,
   registers `@Component({ imports/providers/controllers })` into it,
   instantiates the view inside it, and renders through a
@@ -82,6 +83,15 @@ signals they read (effects run once immediately at construction).
 - `@Component({ providers, controllers, imports })` — `imports` makes a
   view standalone (Angular's `standalone` + `imports` pattern): the module's
   providers and component visibility enter the view's own scope.
+- Stamps come in two families, read through the `pmvc` utils bag
+  (`pmvc.ts`), not the raw `__x` fields. Identity stamps (`__view`,
+  `__controller`) inherit through the constructor chain, so a subclass
+  keeps the kind: `pmvc.isView`, `pmvc.isController`, `pmvc.isInjectable`,
+  `pmvc.isComponent`. Config stamps (`__module`, `__component`) describe
+  one class, own-property reads via `pmvc.isModule`/`pmvc.getModuleMeta`/
+  `pmvc.getComponentMeta` (`ownMeta` underneath). `pmvc.getInjectableMeta`
+  is the exception: `providedIn` reads through the chain, matching
+  Angular's inherited injectable defs.
 
 Controller scope matrix:
 
@@ -100,10 +110,54 @@ instance owned by the calling function component's mount.
 Signal-based on top of `preact-router`: `Router` holds the URL and the
 matched chain as signals; `RouterOutlet` re-renders on navigation.
 `RouterModule.forRoot(routes)` returns a module-shaped provider bundle.
-Route entries may carry `component`, `module`, and `children`; module
-routes create the module injector under that outlet level. `:param`
-segments decode into merged `params`; `*` is a wildcard. `Link` intercepts
-clicks for `navigate()`.
+Route entries may carry `component`, `module`, `loadComponent`,
+`loadChildren`, and `children`; module routes create the module injector
+under that outlet level. `:param` segments decode into merged `params`;
+`*` is a wildcard. `Link` intercepts clicks for `navigate()`.
+
+**Lazy routes** (`lazy.tsx`, `router/lazy.ts`). Two surfaces share the
+same machinery:
+
+`lazyView(loader)` / `lazyModule(loader)` return facade components that
+work in routes AND straight in JSX. `lazyView` facades sit in a route's
+`component` field or mount anywhere (`<LazyHello/>` suspends on the
+import, then mounts the resolved view with the same props). `lazyModule`
+facades sit in `module` or `component` fields, or mount in JSX: the
+resolved module's bootstrap view renders inside the module injector.
+Both defer the import until first mount: creating the facade does not
+fetch the chunk.
+
+`Route.loadComponent` / `Route.loadChildren` are the route-level
+equivalents. `loadComponent` lazy-loads a standalone view; `loadChildren`
+lazy-loads a feature: an `@Module` class (bootstrap renders inside the
+module injector, the lazy form of `module`) or a `Route[]` spliced in as
+the route's children.
+
+All loaders resolve an ES-module namespace by metadata stamp, not
+convention: `default` export first, then named exports scanned for
+`__module` (modules), `__view`/`__component`/`lazyView` facades
+(components), or an array (a `Route[]`). `.then(m => m.X)` short-circuits
+the scan.
+
+- `loadChildren` resolving a `Route[]`: matching reads the per-route
+  resolution signal, so `router.matches` re-runs and the chain extends
+  when the chunk lands; while it is pending the parent claims the URL
+  alone.
+- Resolution is cached: the first match or render kicks the loader,
+  repeat visits reuse it. A rejection logs
+  `[framework] lazy route '<path>' failed to load` (or
+  `lazyView`/`lazyModule failed to load` for facades) and renders
+  nothing at that depth.
+- A route with no resolved `component` is a componentless wrapper: the
+  outlet passes through to the next depth, so lazy route trees need no
+  shell view unless you want one.
+- Loading state surfaces in two places: `router.pending` is a computed
+  true while any matched route is still resolving (shell-level loading
+  chrome reads it); `<RouterOutlet fallback={...}>` renders placeholder
+  content at that depth while the match's own target resolves, including
+  one depth past the chain while `loadChildren` holds deeper matches
+  back. lazyView/lazyModule facades take the same `fallback` prop for
+  JSX use.
 
 **Nested routes.** The URL resolves against `children` as a chain
 outermost → innermost (`router.matches`), each `<RouterOutlet/>` rendering

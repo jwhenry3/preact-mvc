@@ -88,6 +88,60 @@ export class UserView extends View {
         injector is released.
       </p>
 
+      <h2>Code-split routes</h2>
+      <p>
+        <code>lazyView</code> and <code>lazyModule</code> wrap a dynamic{' '}
+        <code>import()</code> in a facade that works in route fields and
+        straight in JSX: the bundler splits the chunk, and it downloads on
+        first mount or navigation, not at startup.
+      </p>
+      <CodeBlock
+        file="app.routes.ts"
+        code={`const HelloView = lazyView(() => import('./hello.view').then(m => m.HelloView));
+const AdminFeature = lazyModule(() => import('./admin.module').then(m => m.AdminModule));
+
+export const routes: Route[] = [
+  { path: '/hello/:name', component: HelloView },  // lazy standalone view
+  { path: '/admin', module: AdminFeature },        // lazy module + its injector
+  // Lazy route tree — a Route[] splices in as this route's children.
+  { path: '/reports', loadChildren: () => import('./reports.routes').then(m => m.reportRoutes) },
+];
+
+// …and the same facades mount directly in JSX:
+//   <HelloView name="docs" />   <AdminFeature />`}
+      />
+      <p>
+        <code>Route.loadComponent</code> and <code>Route.loadChildren</code>{' '}
+        are the route-level equivalents when you don't need a facade:{' '}
+        <code>loadChildren</code> is also the only form that resolves a{' '}
+        <code>Route[]</code>, splicing a whole lazy subtree into the match.
+        Every loader resolves by metadata, not convention: the{' '}
+        <code>default</code> export wins, then named exports are scanned
+        for an <code>@Module</code> class, a <code>@Component</code>/
+        <code>View</code> class, or a <code>Route[]</code>. Resolution is
+        cached, so repeat visits never refetch. While a lazy route loads,
+        an eager parent shell stays mounted; a resolved <code>Route[]</code>{' '}
+        extends the match chain in place. A route with no component of its
+        own is a transparent wrapper: children render straight through it.
+      </p>
+      <p>
+        Loading state is observable, not implicit: <code>router.pending</code>{' '}
+        is a computed that's true while any matched route is still resolving
+        (a shell can render a progress indicator anywhere), and each{' '}
+        <code>&lt;RouterOutlet&gt;</code> takes a <code>fallback</code> prop
+        rendered at that depth while its target loads — including the slot
+        where pending <code>loadChildren</code> routes will appear.
+        <code>lazyView</code>/<code>lazyModule</code> facades accept the same{' '}
+        <code>fallback</code> prop for JSX use.
+      </p>
+      <CodeBlock
+        language="tsx"
+        code={`<RouterOutlet fallback={<RouteSkeleton />} />
+
+// In any view — header spinner, dimmed page, etc.:
+{this.router.pending.value && <ProgressBar />}`}
+      />
+
       <h2>Nested routes</h2>
       <p>
         <code>children</code> match by prefix: the URL resolves as a chain

@@ -9,6 +9,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### `@preact-mvc/core`
+
+#### Added
+
+- **Lazy routes.** `lazyView(loader)` / `lazyModule(loader)` wrap an
+  `import()` split point in a facade usable in route `component`/`module`
+  fields AND directly in JSX; `Route.loadComponent`/`loadChildren` are
+  the route-level equivalents, with `loadChildren` also resolving a
+  `Route[]` spliced in as children. Loaders resolve by metadata stamp:
+  `default` export first, then named exports scanned for `@Module`
+  classes, `@Component`/`View` classes, or route arrays. A resolved
+  module mounts its bootstrap view inside the module injector; a
+  resolved `Route[]` extends `router.matches` in place when the chunk
+  lands. The import defers until first mount or match, resolution is
+  cached, and rejections log and render nothing at that depth.
+- **Componentless wrapper routes.** A route with no resolved `component`
+  now passes through to the next outlet depth instead of terminating the
+  chain, so lazy route trees and route groups need no shell view.
+- **Lazy loading states.** `router.pending` is a computed that is true
+  while any matched route resolves its chunk; `<RouterOutlet fallback>`
+  renders placeholder content at that depth while its target loads
+  (covering `loadComponent`, `lazyView`/`lazyModule` facades, and the
+  slot one depth past a pending `loadChildren`). The facades accept the
+  same `fallback` prop for JSX use.
+
 ## [0.1.3]
 
 ### `@preact-mvc/core`, `@preact-mvc/atoll`, `@preact-mvc/atoll-island`

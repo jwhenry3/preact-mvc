@@ -74,6 +74,12 @@ describe('module injectors', () => {
   it('exposes module metadata', () => {
     expect(getModuleMeta(FeatureMod)?.providers).toContain(ServiceA);
   });
+
+  it('does not inherit module metadata through subclassing', () => {
+    class Sub extends FeatureMod {}
+    expect(getModuleMeta(Sub)).toBeUndefined();
+    expect(() => createModuleInjector(Sub, new Injector())).toThrow(/not a module/);
+  });
 });
 
 describe('module-declared controllers', () => {

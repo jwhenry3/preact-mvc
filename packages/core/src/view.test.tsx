@@ -109,6 +109,23 @@ describe('class-based views', () => {
     expect(document.querySelector('p')!.textContent).not.toBe('');
   });
 
+  it('does not inherit @Component providers through subclassing', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    class Svc {}
+    @Component({ providers: [Svc] })
+    class Parent extends View {
+      s = inject(Svc);
+      render() {
+        return <p>has svc</p>;
+      }
+    }
+    class Sub extends Parent {}
+    mount(<Sub />);
+    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(screen.getByText(/No provider for Svc/)).toBeTruthy();
+    errSpy.mockRestore();
+  });
+
   it('passes props onto the view instance', () => {
     class V extends View<{ label: string }> {
       render() {

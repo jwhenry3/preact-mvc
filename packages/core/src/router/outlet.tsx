@@ -1,11 +1,17 @@
 import { createContext } from 'preact';
-import type { FunctionComponent } from 'preact';
+import type { ComponentChildren, FunctionComponent } from 'preact';
 import { useContext } from 'preact/hooks';
 import PRRouter from 'preact-router';
 import type { RoutableProps } from 'preact-router';
 import { useInjector, useService, InjectorContext } from '../context';
 import { getModuleInjector } from '../module';
-import { routeComponent } from './module';
+import { lazyStateOf } from '../lazy';
+import {
+  isLazyRoute,
+  lazyRouteState,
+  resolveRouteSync,
+  routeChildPending,
+} from './lazy';
 import { Router } from './router';
 
 /**
@@ -24,13 +30,21 @@ const OutletDepth = createContext(0);
  */
 const BridgeSink: FunctionComponent<RoutableProps> = () => null;
 
-export function RouterOutlet() {
+export function RouterOutlet(props: { fallback?: ComponentChildren }) {
   const router = useService(Router);
   const parent = useInjector();
   const depth = useContext(OutletDepth);
   const matches = router.matches.value;
   const match = matches?.[depth];
   if (!match) {
+    // One depth past the chain while the last match's lazy children load —
+    // this outlet is where the loaded child will appear, so the fallback
+    // marks the spot. (Only loadChildren can hold back deeper matches.)
+    const chainLen = matches?.length ?? 0;
+    const last = chainLen ? matches![chainLen - 1] : undefined;
+    if (last && depth === chainLen && routeChildPending(last.route)) {
+      return <>{props.fallback ?? null}</>;
+    }
     // The outermost outlet keeps the bridge mounted even with no match, so
     // route() interop survives 404s.
     return depth === 0 ? (
@@ -40,15 +54,29 @@ export function RouterOutlet() {
     ) : null;
   }
 
-  const Component = routeComponent(match);
-  if (!Component) return null;
+  // Lazy routes resolve through a per-route signal: while 'loading' the
+  // static fields still answer (an eager shell mounts while its lazy
+  // children load); 'ready' swaps in the resolved component/module.
+  const st = isLazyRoute(match.route) ? lazyRouteState(match.route).value : null;
+  const resolved = st?.status === 'ready' ? st.resolved : resolveRouteSync(match.route);
+  const Component = resolved.component;
 
   // A route with `module` gets the module's injector — its providers are
   // scoped to that feature. Nesting is automatic: a deeper outlet resolves
   // its module under this level's injector.
-  const injector = match.route.module
-    ? getModuleInjector(match.route.module, parent)
+  const injector = resolved.module
+    ? getModuleInjector(resolved.module, parent)
     : parent;
+
+  // This depth is pending while its own render target is unresolved:
+  // route-level loaders with nothing statically known yet, a lazyModule
+  // facade in the module field, or a lazyView/lazyModule facade suspending
+  // on mount. An eager shell under a pending loadChildren is NOT pending —
+  // it renders now and the deeper outlet's fallback covers the child.
+  const pending =
+    (st?.status === 'loading' && !Component && !resolved.module) ||
+    lazyStateOf(Component)?.status === 'loading' ||
+    lazyStateOf(match.route.module)?.status === 'loading';
 
   return (
     <OutletDepth.Provider value={depth + 1}>
@@ -58,7 +86,15 @@ export function RouterOutlet() {
         </PRRouter>
       )}
       <InjectorContext.Provider value={injector}>
-        <Component />
+        {pending ? (
+          props.fallback ?? null
+        ) : Component ? (
+          <Component />
+        ) : (
+          /* A componentless route is a pure wrapper — the chain continues
+             one depth down without needing a shell view. */
+          <RouterOutlet fallback={props.fallback} />
+        )}
       </InjectorContext.Provider>
     </OutletDepth.Provider>
   );

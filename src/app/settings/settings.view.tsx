@@ -47,7 +47,14 @@ export class SettingsShellView extends View {
               })}
             </div>
             <div class="pt-4">
-              <RouterOutlet />
+              {/* The nested outlet's own fallback covers pending lazy children */}
+              <RouterOutlet
+                fallback={
+                  <p class="text-sm text-muted-foreground animate-pulse">
+                    Loading sub-page…
+                  </p>
+                }
+              />
             </div>
           </CardContent>
         </Card>

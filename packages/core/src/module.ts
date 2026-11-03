@@ -2,6 +2,7 @@ import { h, render } from 'preact';
 import { Injector } from './injector';
 import { InjectorContext } from './context';
 import { installViewInterop } from './view';
+import { ownMeta } from './decorators';
 import type { ModuleMeta } from './decorators';
 
 // Modules are the unit of provider scoping. A module's providers (plus those
@@ -10,7 +11,11 @@ import type { ModuleMeta } from './decorators';
 // feature/lazy module injectors -> per-view injectors.
 
 export function getModuleMeta(mod: any): ModuleMeta | undefined {
-  return mod?.__module;
+  return ownMeta<ModuleMeta>(mod, '__module');
+}
+
+export function isModule(mod: any): boolean {
+  return getModuleMeta(mod) != null;
 }
 
 // Applies a module to an injector: registers all transitively imported

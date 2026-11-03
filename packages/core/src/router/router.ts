@@ -2,11 +2,26 @@ import { computed, signal } from '@preact/signals';
 import { route as prRoute } from 'preact-router';
 import { Injectable } from '../decorators';
 import { InjectionToken } from '../injector';
+import { lazyRouteState, routePending } from './lazy';
 
 export interface Route {
   path: string;
   component?: any; // view function
   module?: any; // module class — its bootstrap component renders inside its injector
+  /**
+   * Lazy standalone component — a bundler split point. The loader resolves
+   * to a View class / @Component-stamped class / function component, picked
+   * from the module's default export or stamped named exports (or selected
+   * explicitly: `() => import('./x.view').then(m => m.XView)`).
+   */
+  loadComponent?: () => Promise<any>;
+  /**
+   * Lazy feature — resolves to an @Module class (its bootstrap view renders
+   * inside the module injector, like `module`) or a Route[] spliced in as
+   * this route's children. Matching reads the resolution signal, so the
+   * chain extends as soon as the chunk lands.
+   */
+  loadChildren?: () => Promise<any>;
   children?: Route[];
 }
 
@@ -63,8 +78,23 @@ function matchSegments(routes: Route[], segs: string[]): RouteMatch[] | null {
   for (const route of routes) {
     const m = matchPrefix(route.path, segs);
     if (m === null) continue;
-    if (route.children?.length) {
-      const child = matchSegments(route.children, m.rest);
+    let children = route.children;
+    let pending = false;
+    if (!children?.length && route.loadChildren) {
+      // Reading the resolution signal inside the matches computed does two
+      // things: kicks the loader, and subscribes this computed so the chain
+      // re-matches the moment a lazy Route[] lands.
+      const st = lazyRouteState(route).value;
+      if (st.status === 'loading') pending = true;
+      else if (st.status === 'ready') children = st.resolved.children;
+    }
+    if (pending) {
+      // Lazy children unresolved — the parent claims the URL alone until the
+      // chunk lands and the computed re-matches into the loaded tree.
+      return [{ route, params: m.params }];
+    }
+    if (children?.length) {
+      const child = matchSegments(children, m.rest);
       if (child !== null) return [{ route, params: m.params }, ...child];
       if (m.rest.length === 0) return [{ route, params: m.params }];
       continue;
@@ -94,6 +124,14 @@ export class Router {
   /** Params merged across the whole chain (inner levels win on collision). */
   params = computed(() =>
     Object.assign({}, ...(this.matches.value ?? []).map((m) => m.params)),
+  );
+  /**
+   * True while any route in the matched chain is still resolving its lazy
+   * chunk (loadComponent/loadChildren/lazyView/lazyModule) — parents read
+   * it to render loading UI anywhere above the outlet.
+   */
+  pending = computed(
+    () => !!this.matches.value?.some((m) => routePending(m.route)),
   );
 
   constructor(

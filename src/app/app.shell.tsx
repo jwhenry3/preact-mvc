@@ -78,6 +78,10 @@ export class AppShell extends View {
               <span class="text-foreground font-medium">{page}</span>
             </div>
             <div class="flex items-center gap-2">
+              {/* router.pending — any lazy route in the chain still resolving */}
+              {this.router.pending.value && (
+                <span class="text-xs text-muted-foreground animate-pulse">loading…</span>
+              )}
               <button
                 class="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-accent transition-colors cursor-pointer"
                 onClick={() => this.theme.toggle()}
@@ -89,7 +93,9 @@ export class AppShell extends View {
             </div>
           </header>
           <main class="flex-1 p-6 overflow-auto">
-            <RouterOutlet />
+            <RouterOutlet
+              fallback={<p class="text-sm text-muted-foreground animate-pulse">Loading route…</p>}
+            />
           </main>
         </div>
       </div>

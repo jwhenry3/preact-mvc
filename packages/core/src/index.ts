@@ -21,12 +21,19 @@ export type { InjectableMeta, ModuleMeta, ComponentMeta } from './decorators';
 export { View, installViewInterop } from './view';
 
 // Modules & bootstrap
-export { bootstrap, createModuleInjector, getModuleInjector, getModuleMeta } from './module';
+export { bootstrap, createModuleInjector, getModuleInjector } from './module';
+
+// Class-flag utilities — pmvc.isView(x), pmvc.isController(x), ...
+export { pmvc } from './pmvc';
 
 // View integration
 export { InjectorContext, useInjector, useService, Provide } from './context';
 export { useController } from './controller';
 export type { OnInit, OnDestroy } from './controller';
+
+// Lazy loading — usable in route configs and straight in JSX
+export { lazyView, lazyModule } from './lazy';
+export type { LazyResource, LazyResourceState } from './lazy';
 
 // Router
 export { Router, ROUTES, ROUTER_BASE, RouterModule, RouterOutlet, Link, defaultBasePath } from './router';

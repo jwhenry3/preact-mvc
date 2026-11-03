@@ -1,5 +1,5 @@
-import { getModuleMeta } from '../module';
 import { ROUTES, ROUTER_BASE, Router, defaultBasePath } from './router';
+import { resolveRouteSync } from './lazy';
 import type { Route } from './router';
 
 export interface RouterOptions {
@@ -35,8 +35,5 @@ export class RouterModule {
 // Resolve which view a matched route should render: an explicit component, or
 // the module's declared bootstrap component.
 export function routeComponent(match: { route: Route }): any {
-  const { route } = match;
-  if (route.component) return route.component;
-  if (route.module) return getModuleMeta(route.module)?.bootstrap?.[0] ?? null;
-  return null;
+  return resolveRouteSync(match.route).component;
 }

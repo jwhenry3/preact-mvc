@@ -1,7 +1,7 @@
 import { h } from 'preact';
 import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
 import { act } from 'preact/test-utils';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Injector } from '../injector';
 import { inject } from '../injector';
 import { InjectorContext } from '../context';
@@ -11,7 +11,8 @@ import { RouterModule, routeComponent } from './module';
 import { RouterOutlet } from './outlet';
 import { Link } from './link';
 import { createModuleInjector } from '../module';
-import { Module } from '../decorators';
+import { lazyModule, lazyView } from '../lazy';
+import { Component, Module } from '../decorators';
 import { View } from '../view';
 import type { Route } from './router';
 
@@ -220,6 +221,288 @@ describe('RouterOutlet', () => {
     const C = () => null;
     const match = { route: { path: '/x', component: C } };
     expect(routeComponent(match)).toBe(C);
+  });
+
+  it('componentless routes pass through to the next depth', async () => {
+    const M = {
+      __module: {
+        imports: [
+          RouterModule.forRoot(
+            [
+              {
+                path: '/wrap',
+                children: [{ path: 'x', component: () => <p>wrapped child</p> }],
+              },
+            ],
+            { basePath: '/' },
+          ),
+        ],
+      },
+    };
+    outletWith(M, '/wrap/x');
+    expect(await screen.findByText('wrapped child')).toBeTruthy();
+  });
+});
+
+function lazyOutlet(routes: Route[], initial = '/', fallback?: any) {
+  const M = {
+    __module: { imports: [RouterModule.forRoot(routes, { basePath: '/' })] },
+  };
+  const root = new Injector();
+  const inj = createModuleInjector(M, root);
+  history.pushState(null, '', initial);
+  const router = inj.get(Router);
+  router.url.value = location.pathname;
+  return {
+    inj,
+    router,
+    ...render(
+      h(InjectorContext.Provider, { value: inj }, h(RouterOutlet, { fallback })),
+    ),
+  };
+}
+
+describe('lazy routes', () => {
+
+  it('loadComponent mounts the resolved standalone view', async () => {
+    class LazyView extends View {
+      render() {
+        return <p>lazy view</p>;
+      }
+    }
+    lazyOutlet([{ path: '/l', loadComponent: () => Promise.resolve({ default: LazyView }) }], '/l');
+    expect(await screen.findByText('lazy view')).toBeTruthy();
+  });
+
+  it('loadComponent finds a View among named exports', async () => {
+    class Named extends View {
+      render() {
+        return <p>named view</p>;
+      }
+    }
+    lazyOutlet(
+      [{ path: '/n', loadComponent: () => Promise.resolve({ util: 1, Named }) }],
+      '/n',
+    );
+    expect(await screen.findByText('named view')).toBeTruthy();
+  });
+
+  it('lazy standalone views keep their @Component imports scope', async () => {
+    class Svc {
+      tag = 'lazy-svc';
+    }
+    @Module({ providers: [Svc] })
+    class SvcModule {}
+    @Component({ imports: [SvcModule] })
+    class LazyStandalone extends View {
+      s = inject(Svc);
+      render() {
+        return <p>{this.s.tag}</p>;
+      }
+    }
+    lazyOutlet(
+      [{ path: '/s', loadComponent: () => Promise.resolve({ LazyStandalone }) }],
+      '/s',
+    );
+    expect(await screen.findByText('lazy-svc')).toBeTruthy();
+  });
+
+  it('loadChildren mounts the module bootstrap inside its injector', async () => {
+    class FeatureSvc {
+      name = 'lazy-feature';
+    }
+    class Boot extends View {
+      s = inject(FeatureSvc);
+      render() {
+        return <p>{this.s.name}</p>;
+      }
+    }
+    @Module({ providers: [FeatureSvc], bootstrap: [Boot] })
+    class LazyMod {}
+    lazyOutlet(
+      [{ path: '/lm', loadChildren: () => Promise.resolve({ default: LazyMod }) }],
+      '/lm',
+    );
+    expect(await screen.findByText('lazy-feature')).toBeTruthy();
+  });
+
+  it('loadChildren resolving a Route[] extends the match into the loaded tree', async () => {
+    const inner: Route[] = [{ path: 'users', component: () => <p>loaded users</p> }];
+    lazyOutlet(
+      [{ path: '/admin', loadChildren: () => Promise.resolve({ default: inner }) }],
+      '/admin/users',
+    );
+    // The wrapper route is componentless — the depth-1 outlet renders the
+    // loaded child once the chunk lands.
+    expect(await screen.findByText('loaded users')).toBeTruthy();
+  });
+
+  it('renders an eager shell while lazy children are still loading', async () => {
+    let release!: (v: any) => void;
+    const gate = new Promise<any>((r) => {
+      release = r;
+    });
+    const Shell = () => (
+      <p>
+        shell <RouterOutlet />
+      </p>
+    );
+    const { router } = lazyOutlet(
+      [
+        { path: '/a', component: Shell, loadChildren: () => gate },
+        { path: '*', component: () => <p>not found</p> },
+      ],
+      '/a/x',
+    );
+    // Still loading: the parent claims the URL alone and renders its shell.
+    expect(await screen.findByText(/shell/)).toBeTruthy();
+    expect(router.matches.value).toHaveLength(1);
+    await act(async () => {
+      release({ default: [{ path: 'x', component: () => <p>deep child</p> }] });
+    });
+    expect(await screen.findByText('deep child')).toBeTruthy();
+    expect(router.matches.value).toHaveLength(2);
+  });
+
+  it('a lazy route resolves once across repeat visits', async () => {
+    const C = () => <p>cached</p>;
+    const load = vi.fn(() => Promise.resolve({ default: C }));
+    const { router } = lazyOutlet(
+      [
+        { path: '/a', loadComponent: load },
+        { path: '/b', component: () => <p>b</p> },
+      ],
+      '/a',
+    );
+    expect(await screen.findByText('cached')).toBeTruthy();
+    await act(async () => {
+      router.navigate('/b');
+    });
+    await act(async () => {
+      router.navigate('/a');
+    });
+    expect(await screen.findByText('cached')).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('a rejected loader logs and renders nothing', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    lazyOutlet(
+      [{ path: '/bad', loadComponent: () => Promise.reject(new Error('chunk gone')) }],
+      '/bad',
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining("lazy route '/bad'"),
+      expect.anything(),
+    );
+  });
+});
+
+describe('lazy loading states', () => {
+  function deferred() {
+    let release!: (v: any) => void;
+    const gate = new Promise<any>((r) => {
+      release = r;
+    });
+    return { gate, release };
+  }
+
+  it('the outlet fallback covers a pending loadComponent', async () => {
+    const { gate, release } = deferred();
+    lazyOutlet(
+      [{ path: '/l', loadComponent: () => gate }],
+      '/l',
+      <p>loading…</p>,
+    );
+    expect(await screen.findByText('loading…')).toBeTruthy();
+    await act(async () => {
+      release({ default: () => <p>arrived</p> });
+    });
+    expect(await screen.findByText('arrived')).toBeTruthy();
+    expect(screen.queryByText('loading…')).toBeNull();
+  });
+
+  it('the outlet fallback covers a lazyView facade component', async () => {
+    const { gate, release } = deferred();
+    const Lazy = lazyView(() => gate);
+    lazyOutlet([{ path: '/f', component: Lazy }], '/f', <p>facade loading</p>);
+    expect(await screen.findByText('facade loading')).toBeTruthy();
+    await act(async () => {
+      release({ default: () => <p>facade arrived</p> });
+    });
+    expect(await screen.findByText('facade arrived')).toBeTruthy();
+  });
+
+  it('the outlet fallback covers a lazyModule facade in the module field', async () => {
+    const { gate, release } = deferred();
+    const LazyMod = lazyModule(() => gate);
+    lazyOutlet([{ path: '/m', module: LazyMod }], '/m', <p>module loading</p>);
+    expect(await screen.findByText('module loading')).toBeTruthy();
+    class Boot extends View {
+      render() {
+        return <p>module arrived</p>;
+      }
+    }
+    @Module({ bootstrap: [Boot] })
+    class M {}
+    await act(async () => {
+      release({ default: M });
+    });
+    expect(await screen.findByText('module arrived')).toBeTruthy();
+  });
+
+  it('a nested outlet fallback covers pending lazy children', async () => {
+    const { gate, release } = deferred();
+    const Shell = () => (
+      <p>
+        shell <RouterOutlet fallback={<p>child loading</p>} />
+      </p>
+    );
+    const { router } = lazyOutlet(
+      [
+        { path: '/a', component: Shell, loadChildren: () => gate },
+        { path: '*', component: () => <p>not found</p> },
+      ],
+      '/a/x',
+      <p>outer fallback</p>,
+    );
+    // The shell mounts eagerly; only the child slot shows the fallback.
+    expect(await screen.findByText(/shell/)).toBeTruthy();
+    expect(await screen.findByText('child loading')).toBeTruthy();
+    expect(screen.queryByText('outer fallback')).toBeNull();
+    await act(async () => {
+      release({ default: [{ path: 'x', component: () => <p>deep child</p> }] });
+    });
+    expect(await screen.findByText('deep child')).toBeTruthy();
+    expect(screen.queryByText('child loading')).toBeNull();
+    expect(router.matches.value).toHaveLength(2);
+  });
+
+  it('router.pending tracks lazy resolution across the chain', async () => {
+    const { gate, release } = deferred();
+    const { router } = lazyOutlet(
+      [
+        { path: '/p', loadComponent: () => gate },
+        { path: '/home', component: () => <p>home</p> },
+      ],
+      '/p',
+    );
+    expect(router.pending.value).toBe(true);
+    await act(async () => {
+      release({ default: () => <p>done</p> });
+    });
+    await screen.findByText('done');
+    expect(router.pending.value).toBe(false);
+    // Navigating to an eager route stays settled.
+    await act(async () => {
+      router.navigate('/home');
+    });
+    expect(await screen.findByText('home')).toBeTruthy();
+    expect(router.pending.value).toBe(false);
   });
 });
 

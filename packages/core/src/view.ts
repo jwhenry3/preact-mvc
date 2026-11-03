@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef } from 'preact/hooks';
 import { InjectorContext, useInjector } from './context';
 import { Injector } from './injector';
 import { registerModule } from './module';
-import { ownerOf } from './decorators';
+import { ownerOf, getComponentMeta } from './decorators';
 import type { ComponentMeta } from './decorators';
 
 // --- Class-based views -----------------------------------------------------
@@ -18,6 +18,11 @@ import type { ComponentMeta } from './decorators';
 // read inside it subscribe the host component automatically.
 
 export abstract class View<P = {}> extends PreactComponent<P> {
+  // Identity stamp, not instanceof: statics inherit through the constructor
+  // chain, so subclasses (and subclasses of subclasses) read true, and a
+  // view class built against a second copy of this package still interops.
+  static readonly __view = true;
+
   abstract render(): ComponentChildren;
 
   // Views are signal-driven; setState/forceUpdate would hit Preact internals
@@ -30,8 +35,9 @@ export abstract class View<P = {}> extends PreactComponent<P> {
   }
 }
 
-function isViewClass(t: any): boolean {
-  return typeof t === 'function' && t.prototype instanceof View;
+/** Identity stamp read — a subclass of a View stays a view. */
+export function isView(t: any): boolean {
+  return typeof t === 'function' && !!(t as any).__view;
 }
 
 // --- Error boundary ----------------------------------------------------------
@@ -80,7 +86,7 @@ function hostFor(cls: any): any {
   let host = hostCache.get(cls);
   if (host) return host;
 
-  const meta = (cls.__component ?? {}) as ComponentMeta;
+  const meta: ComponentMeta = getComponentMeta(cls) ?? {};
 
   const inner = function ViewHost(props: any) {
     const parent = useInjector();
@@ -145,7 +151,7 @@ export function installViewInterop(): void {
   const prev = (options as any).vnode as ((vnode: VNode) => void) | undefined;
   (options as any).vnode = (vnode: VNode) => {
     const t = vnode.type;
-    if (isViewClass(t)) vnode.type = hostFor(t);
+    if (isView(t)) vnode.type = hostFor(t);
     prev?.(vnode);
   };
 }
