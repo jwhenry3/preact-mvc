@@ -9,6 +9,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.6]
+
+### `@preact-mvc/core`
+
+#### Fixed
+
+- **`providedIn: 'root'` services can inject bootstrap-module
+  providers.** The root module's provider graph (including `forRoot`
+  bundles such as `RouterModule.forRoot`) now registers into the root
+  injector itself — Angular's eager-module semantics — instead of a
+  child app injector the root scope could not see. Root-scoped services
+  no longer fail with `No provider` when they `inject()` a
+  module-provided token; feature and lazy modules still get their own
+  child injectors.
+
+## [0.1.5]
+
+#### Changed
+
+- **Dependency security updates.** `vitest` and `@vitest/coverage-v8`
+  bumped to `^5.1.0` (clears the `@vitest/mocker` path-traversal and
+  code-injection advisories plus the `glob`/`minimatch`/`test-exclude`
+  chain), `vite` to `6.4.5` across every lockfile (`server.fs.deny`
+  bypass, launch-editor Windows CVEs), and `seroval` to `1.6.12`
+  (code-injection fixes). The enterprise example moves to
+  `echarts ^6.1.0` (XSS fix) and `zod ^4.6.7` (memory-exhaustion fix).
+  `npm audit` reports zero vulnerabilities in every package.
+
+#### Fixed
+
+- **Vite/vitest config typings under vitest 5.** `vite.config.ts` and
+  `vitest.config.ts` now import `defineConfig` from `vitest/config`;
+  the `/// <reference types="vitest" />` augmentation no longer covers
+  the `test` key.
+
 ## [0.1.4]
 
 ### `@preact-mvc/core`

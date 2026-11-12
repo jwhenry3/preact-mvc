@@ -71,10 +71,17 @@ signals they read (effects run once immediately at construction).
 ## Modules (`module.ts`) and decorators (`decorators.ts`)
 
 - `@Module({ providers, imports, controllers, components, bootstrap })`.
-- `createModuleInjector(cls, parent)` — caches one injector per
-  (module class, parent injector) pair; `imports` are registered into it
-  recursively. `injector.modules` is the transitive closure of the module
-  and its imports.
+- `createModuleInjector(cls, parent)` — builds a child injector for a
+  feature/lazy module; `imports` are registered into it recursively.
+  `injector.modules` is the transitive closure of the module and its
+  imports. `getModuleInjector` caches one injector per
+  (module, parent injector) pair so feature state survives navigation.
+- `bootstrap(RootModule, el)` registers the root module's provider graph
+  (including `forRoot` bundles like `RouterModule.forRoot`) into the
+  root injector itself — Angular's eager-module semantics — so
+  `providedIn: 'root'` services, which instantiate under the root
+  injector, can inject module providers. Only feature/lazy modules get
+  child injectors.
 - **Ownership**: `components`/`bootstrap` declarations register
   view-class → module. Mounting a declared view whose owner is not in the
   ancestor chain's `modules` closure throws a clear error at mount (the
@@ -187,9 +194,10 @@ prepend it. An app on `/docs/demo/` sees `/todos` and emits
 
 ## Bootstrap
 
-`bootstrap(AppComponent, { routes?, module? })` — builds the root injector
-(registering the root module if given), renders `InjectorContext.Provider`
-around the app component. `src/main.tsx` is the entry.
+`bootstrap(RootModule, el)` — creates the root injector, registers the
+root module's providers/imports into it (eager modules share the root
+scope), and renders `InjectorContext.Provider` around the module's
+`bootstrap` view. `src/main.tsx` is the entry.
 
 ## Invariants not to break
 

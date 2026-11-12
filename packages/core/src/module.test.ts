@@ -1,7 +1,14 @@
+import { h, render } from 'preact';
 import { describe, it, expect } from 'vitest';
-import { Injector } from './injector';
-import { Module, ownerOf } from './decorators';
-import { createModuleInjector, getModuleInjector, getModuleMeta } from './module';
+import { Injector, inject } from './injector';
+import { Injectable, Module, ownerOf } from './decorators';
+import {
+  bootstrap,
+  createModuleInjector,
+  getModuleInjector,
+  getModuleMeta,
+  registerModule,
+} from './module';
 import { View } from './view';
 
 class Shared {}
@@ -79,6 +86,53 @@ describe('module injectors', () => {
     class Sub extends FeatureMod {}
     expect(getModuleMeta(Sub)).toBeUndefined();
     expect(() => createModuleInjector(Sub, new Injector())).toThrow(/not a module/);
+  });
+});
+
+describe('bootstrap module scope', () => {
+  it('lets a providedIn: root service inject forRoot-style module providers', () => {
+    class FeatureSvc {}
+    // A forRoot-style bundle: module metadata on a plain object, the same
+    // shape RouterModule.forRoot() returns.
+    const forRoot = { __module: { providers: [FeatureSvc] } };
+    @Injectable({ providedIn: 'root' })
+    class RootSvc {
+      feature = inject(FeatureSvc);
+    }
+    @Module({ imports: [forRoot] })
+    class AppModule {}
+    // bootstrap() registers the root module into the root injector itself.
+    const root = new Injector(null, 'root');
+    registerModule(AppModule, root, new Set());
+    expect(root.get(RootSvc).feature).toBeInstanceOf(FeatureSvc);
+  });
+
+  it('resolves the same graph through bootstrap()', () => {
+    class FeatureSvc {
+      label = 'from module';
+    }
+    const forRoot = { __module: { providers: [FeatureSvc] } };
+    @Injectable({ providedIn: 'root' })
+    class RootSvc {
+      feature = inject(FeatureSvc);
+    }
+    class AppView extends View {
+      svc = inject(RootSvc);
+      render() {
+        return h('p', {}, this.svc.feature.label);
+      }
+    }
+    @Module({ imports: [forRoot], bootstrap: [AppView] })
+    class AppModule {}
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    try {
+      bootstrap(AppModule, host);
+      expect(host.textContent).toBe('from module');
+    } finally {
+      render(null, host);
+      host.remove();
+    }
   });
 });
 
