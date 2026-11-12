@@ -62,11 +62,28 @@ signals they read (effects run once immediately at construction).
 - `setState`/`forceUpdate` on a View throw intentionally; refs on views
   throw. State lives in signals.
 - **Error boundary**: mount/render failures render a fallback box (with
-  Retry) instead of taking down the whole tree.
+  Retry) instead of taking down the whole tree. `errorHint(error)` maps
+  opaque upstream error signatures to actionable guidance appended to the
+  box and the console.error; add entries to `ERROR_HINTS` when a cryptic
+  thrown error has a known real cause.
 - Function components are untouched by all of this — they get real Preact
   semantics (hooks legal). Hooks inside `View.render()` are forbidden by
   convention: they run during the host's render pass and conditional renders
   would scramble hook order.
+- **preact/debug resilience**: `preact/hooks` flushes a component's pending
+  `useEffect` callbacks inside `options.__r` when it re-renders before the
+  async afterPaint pass. A pending effect that calls `render()` runs a
+  nested diff whose `diffed` clears `preact/debug`'s hook guard, and the
+  flag stays cleared into the component's own body: its next hook throws
+  "Hook can only be invoked from render methods" falsely (dev only).
+  `installViewInterop` neutralizes this: every function component type is
+  wrapped so `currentRender` is the instance executing its body, and the
+  `options.__h`/`_hook` check tolerates a corrupt flag only when the
+  hook's component provably is that instance. Nested `render()` inside
+  `useEffect` works, and real violations (a hook inside an effect
+  callback) still throw. The guard must exist at install time, so
+  `import 'preact/debug'` must precede framework imports (preset-vite
+  injects it first).
 
 ## Modules (`module.ts`) and decorators (`decorators.ts`)
 

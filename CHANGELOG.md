@@ -9,6 +9,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.7]
+
+### `@preact-mvc/core`
+
+#### Fixed
+
+- **Dev-only "Hook can only be invoked from render methods" false
+  positive.** Pending `useEffect` callbacks flush inside `options.__r`
+  on a re-render, and a nested `render()` there cleared `preact/debug`'s
+  hook guard for the still-rendering component. `installViewInterop` now
+  wraps function component types so the guard tolerates the corrupt flag
+  only when a hook provably executes inside its own render body —
+  `render()` inside `useEffect` works, and real violations still throw.
+  Requires `preact/debug` to load before the framework (preset-vite
+  injects it first).
+
+#### Added
+
+- **`errorHint(error)`** (exported) maps opaque upstream error
+  signatures — starting with the hook-guard throw above — to actionable
+  hints. `ViewErrorBoundary` appends matching hints to its fallback box
+  and the console, and the fallback no longer claims every failure is a
+  mount failure.
+
 ## [0.1.6]
 
 ### `@preact-mvc/core`

@@ -45,6 +45,27 @@ export function isView(t: any): boolean {
 // Wraps every view host so mount/render failures stay local instead of
 // aborting the whole render pass.
 
+// Opaque upstream error signatures -> actionable guidance, appended to the
+// boundary output and the console.error. Add entries when a cryptic thrown
+// error has a known real cause.
+const ERROR_HINTS: [RegExp, string][] = [
+  [
+    /Hook can only be invoked from render methods/,
+    'a hook ran outside a render pass. A common cause: a function component ' +
+      'mounts a Preact sub-tree with render() inside useEffect. Pending ' +
+      "useEffects flush inside options.__r on a re-render, and the nested " +
+      "diff corrupts preact/debug's hook tracking for the outer component. " +
+      'Mount sub-trees in useLayoutEffect instead.',
+  ],
+];
+
+/** Map a caught error to a known-cause hint, or null when unrecognized. */
+export function errorHint(error: any): string | null {
+  const msg = String(error?.message ?? error);
+  for (const [re, hint] of ERROR_HINTS) if (re.test(msg)) return hint;
+  return null;
+}
+
 class ViewErrorBoundary extends PreactComponent<
   { viewName: string; children?: ComponentChildren },
   { error: any }
@@ -53,12 +74,15 @@ class ViewErrorBoundary extends PreactComponent<
 
   override componentDidCatch(error: any) {
     console.error(`[framework] ${this.props.viewName} failed:`, error);
+    const hint = errorHint(error);
+    if (hint) console.error(`[framework] hint for ${this.props.viewName}:`, hint);
     this.setState({ error });
   }
 
   override render() {
     const err = this.state.error;
     if (!err) return this.props.children;
+    const hint = errorHint(err);
     return h(
       'div',
       {
@@ -71,8 +95,9 @@ class ViewErrorBoundary extends PreactComponent<
           fontSize: '0.85rem',
         },
       },
-      h('strong', null, `${this.props.viewName} failed to mount`),
+      h('strong', null, `${this.props.viewName} failed`),
       h('pre', { style: { whiteSpace: 'pre-wrap', margin: '0.5rem 0' } }, String(err?.message ?? err)),
+      hint ? h('p', { style: { margin: '0 0 0.5rem' } }, `hint: ${hint}`) : null,
       h('button', { onClick: () => this.setState({ error: null }) }, 'Retry')
     );
   }
@@ -141,6 +166,45 @@ function hostFor(cls: any): any {
   return host;
 }
 
+// --- preact/debug resilience --------------------------------------------------
+// preact/hooks flushes a component's pending useEffects inside options.__r
+// when it re-renders before the async afterPaint pass. A pending effect that
+// calls render() runs a nested diff whose `diffed` clears preact/debug's
+// hooksAllowed flag — and the flag stays cleared when the component's own
+// render body resumes, so its next hook throws "Hook can only be invoked
+// from render methods" falsely. The flag itself is module-local and cannot
+// be repaired, so instead the guard's question is answered precisely:
+// function component types are wrapped so `currentRender` is the instance
+// executing its body, and the options.__h/_hook check tolerates a corrupt
+// flag only when the hook's component provably IS that instance.
+
+let currentRender: any = null;
+const wrappedTypes = new WeakMap<object, any>();
+
+function isFunctionComponentType(t: any): boolean {
+  return typeof t === 'function' && !(t.prototype && t.prototype.render);
+}
+
+function wrapFunctionComponent(type: any) {
+  let wrapped = wrappedTypes.get(type);
+  if (!wrapped) {
+    wrapped = function (this: any, props: any, ctx: any) {
+      const prev = currentRender;
+      currentRender = this;
+      try {
+        return type.call(this, props, ctx);
+      } finally {
+        currentRender = prev;
+      }
+    };
+    // Statics (displayName, metadata stamps) resolve off the original type.
+    Object.setPrototypeOf(wrapped, type);
+    wrapped.displayName = type.displayName || type.name;
+    wrappedTypes.set(type, wrapped);
+  }
+  return wrapped;
+}
+
 let installed = false;
 
 // Install the vnode interceptor. Must run before any view class is rendered;
@@ -148,10 +212,36 @@ let installed = false;
 export function installViewInterop(): void {
   if (installed) return;
   installed = true;
+
+  // preact/debug installs its hook guard on options.__h (dist build) or
+  // options._hook (source build). Component-type wrapping only engages when
+  // a guard exists to protect: production has no check that can corrupt.
+  // The guard must already be installed, so `import 'preact/debug'` has to
+  // precede framework imports (preset-vite injects it first).
+  const guardKeys = (['__h', '_hook'] as const).filter(
+    (k) => typeof (options as any)[k] === 'function'
+  );
+  const debugLoaded = guardKeys.length > 0;
+  for (const key of guardKeys) {
+    const check = (options as any)[key];
+    (options as any)[key] = (comp: any, index: number, type: number) => {
+      try {
+        check(comp, index, type);
+      } catch (err) {
+        if (!comp || comp !== currentRender) throw err;
+        // comp is executing its own render body: the call is legal, the
+        // guard's flag was cleared by a nested diffed inside options.__r.
+      }
+    };
+  }
+
   const prev = (options as any).vnode as ((vnode: VNode) => void) | undefined;
   (options as any).vnode = (vnode: VNode) => {
     const t = vnode.type;
     if (isView(t)) vnode.type = hostFor(t);
+    else if (debugLoaded && isFunctionComponentType(t)) {
+      vnode.type = wrapFunctionComponent(t);
+    }
     prev?.(vnode);
   };
 }

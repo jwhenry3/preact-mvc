@@ -18,7 +18,7 @@ export { Injectable, Controller, Module, Component } from './decorators';
 export type { InjectableMeta, ModuleMeta, ComponentMeta } from './decorators';
 
 // Class-based views
-export { View, installViewInterop } from './view';
+export { View, installViewInterop, errorHint } from './view';
 
 // Modules & bootstrap
 export { bootstrap, createModuleInjector, getModuleInjector } from './module';

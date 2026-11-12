@@ -121,7 +121,7 @@ describe('class-based views', () => {
     }
     class Sub extends Parent {}
     mount(<Sub />);
-    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(await screen.findByText(/failed/)).toBeTruthy();
     expect(screen.getByText(/No provider for Svc/)).toBeTruthy();
     errSpy.mockRestore();
   });
@@ -264,7 +264,7 @@ describe('module ownership enforcement', () => {
     class M {}
     // Rendered under a bare injector — M is not an ancestor.
     mount(<Owned />);
-    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(await screen.findByText(/failed/)).toBeTruthy();
     expect(screen.getByText(/declared by M/)).toBeTruthy();
     errSpy.mockRestore();
   });
@@ -317,7 +317,7 @@ describe('error boundary', () => {
         <Bad />
       </div>
     );
-    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(await screen.findByText(/failed/)).toBeTruthy();
     expect(screen.getByText(/kaboom/)).toBeTruthy();
     // the rest of the tree survived
     expect(screen.getByText('sibling')).toBeTruthy();
@@ -334,8 +334,24 @@ describe('error boundary', () => {
       }
     }
     mount(<NeedsDep />);
-    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(await screen.findByText(/failed/)).toBeTruthy();
     expect(screen.getByText(/No provider for Missing/)).toBeTruthy();
+    errSpy.mockRestore();
+  });
+
+  it('appends a known-cause hint for opaque upstream errors', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    function BadChild(): never {
+      throw new Error('Hook can only be invoked from render methods.');
+    }
+    class V extends View {
+      render() {
+        return <BadChild />;
+      }
+    }
+    mount(<V />);
+    expect(await screen.findByText('V failed')).toBeTruthy();
+    expect(screen.getByText(/useLayoutEffect/)).toBeTruthy();
     errSpy.mockRestore();
   });
 });

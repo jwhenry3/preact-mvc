@@ -74,7 +74,7 @@ describe('AppModule integration', () => {
 
   it('enforces module ownership at /raw-todos with a local error boundary', async () => {
     boot('/raw-todos');
-    expect(await screen.findByText(/failed to mount/)).toBeTruthy();
+    expect(await screen.findByText(/failed/)).toBeTruthy();
     expect(screen.getByText(/declared by TodoModule/)).toBeTruthy();
     // app shell still alive
     expect(screen.getByText('MVC + Modules + JSX')).toBeTruthy();
