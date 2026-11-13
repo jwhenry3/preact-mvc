@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.9]
+
+### `@preact-mvc/core`
+
+#### Added
+
+- **Stable router emissions.** `router.matches` reuses its array and
+  `router.params` its object when a navigation produces an equivalent
+  match — query-only changes (`?date=`, `?deletedBill=`) no longer
+  re-render the outlet tree. New `router.path`/`router.search` computeds
+  split subscriptions by what actually changed.
+- **Routed components mount behind a do-not-update wrapper**, so an
+  outlet or parent re-render never re-runs a routed view; signal and
+  context inputs still re-render it directly. A same-route param change
+  now follows Angular reuse semantics: `params` subscribers update, the
+  component isn't recreated.
+
 ## [0.1.8]
 
 ### `@preact-mvc/core`

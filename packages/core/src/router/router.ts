@@ -109,6 +109,22 @@ function matchRoutes(routes: Route[], url: string): RouteMatch[] | null {
   return matchSegments(routes, path.split('/').filter(Boolean));
 }
 
+function sameParams(a: Record<string, string>, b: Record<string, string>): boolean {
+  const ak = Object.keys(a);
+  const bk = Object.keys(b);
+  return ak.length === bk.length && ak.every((k) => a[k] === b[k]);
+}
+
+// A query-only navigation produces an equivalent match chain: same route
+// objects, same params. Reusing the previous array keeps ===-equality so
+// subscribers (RouterOutlet, match/pending/params computeds) don't
+// re-render or recompute for a search-string change.
+function sameChain(a: RouteMatch[] | null, b: RouteMatch[] | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((m, i) => m.route === b[i].route && sameParams(m.params, b[i].params));
+}
+
 @Injectable()
 export class Router {
   /** Mount prefix, normalized to '' or '/demo' (no trailing slash). */
@@ -116,15 +132,36 @@ export class Router {
   url = signal(typeof location === 'undefined' ? '/' : '');
   /**
    * The matched chain outermost → innermost — depth d is what the d-th
-   * nested <RouterOutlet/> renders.
+   * nested <RouterOutlet/> renders. Emits only when the chain genuinely
+   * changes: a query-only navigation reuses the previous array.
    */
-  matches = computed(() => matchRoutes(this.routes, this.url.value));
+  private lastMatches: RouteMatch[] | null = null;
+  matches = computed(() => {
+    const next = matchRoutes(this.routes, this.url.value);
+    return (this.lastMatches = sameChain(this.lastMatches, next)
+      ? this.lastMatches
+      : next);
+  });
   /** Back-compat: the chain's outermost match. */
   match = computed(() => this.matches.value?.[0] ?? null);
-  /** Params merged across the whole chain (inner levels win on collision). */
-  params = computed(() =>
-    Object.assign({}, ...(this.matches.value ?? []).map((m) => m.params)),
-  );
+  /** Params merged across the whole chain (inner levels win on collision).
+   *  Shallow-stable: emits only when a param value actually changes. */
+  private lastParams: Record<string, string> = {};
+  params = computed(() => {
+    const next = Object.assign(
+      {},
+      ...(this.matches.value ?? []).map((m) => m.params),
+    );
+    return (this.lastParams = sameParams(this.lastParams, next)
+      ? this.lastParams
+      : next);
+  });
+  /** The pathname portion of `url` — emits only when the path changes,
+   *  so query-driven updates (?date=, ?deletedBill=) don't re-render
+   *  subscribers that only care about the location. */
+  path = computed(() => this.url.value.split('?')[0].split('#')[0]);
+  /** The raw query string (no leading '?') — emits only when it changes. */
+  search = computed(() => (this.url.value.split('?')[1] ?? '').split('#')[0]);
   /**
    * True while any route in the matched chain is still resolving its lazy
    * chunk (loadComponent/loadChildren/lazyView/lazyModule) — parents read

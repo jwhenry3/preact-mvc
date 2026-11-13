@@ -57,6 +57,37 @@ describe('route matching', () => {
     r.url.value = '/user/7';
     expect(r.params.value.id).toBe('7');
   });
+
+  it('reuses the match chain and params objects across query-only changes', () => {
+    const r = makeRouter();
+    r.url.value = '/user/7';
+    const m1 = r.matches.value;
+    const p1 = r.params.value;
+    r.url.value = '/user/7?deletedBill=3';
+    expect(r.matches.value).toBe(m1);
+    expect(r.params.value).toBe(p1);
+    // A real param change emits fresh objects.
+    r.url.value = '/user/8';
+    expect(r.matches.value).not.toBe(m1);
+    expect(r.params.value).not.toBe(p1);
+    expect(r.params.value.id).toBe('8');
+  });
+
+  it('path/search computed split subscriptions by what actually changed', () => {
+    const r = makeRouter();
+    r.url.value = '/user/7';
+    expect(r.path.value).toBe('/user/7');
+    expect(r.search.value).toBe('');
+    const p1 = r.path.value;
+    const s1 = r.search.value;
+    r.url.value = '/user/7?date=12';
+    expect(r.path.value).toBe(p1); // path subscribers see no emit
+    expect(r.search.value).toBe('date=12');
+    expect(r.search.value).not.toBe(s1);
+    r.url.value = '/user/8?date=12';
+    expect(r.path.value).toBe('/user/8');
+    expect(r.search.value).toBe('date=12');
+  });
 });
 
 describe('nested routes', () => {
@@ -232,6 +263,37 @@ describe('RouterOutlet', () => {
     const C = () => null;
     const match = { route: { path: '/x', component: C } };
     expect(routeComponent(match)).toBe(C);
+  });
+
+  it('does not re-render the routed component on a query-only navigation', async () => {
+    let renders = 0;
+    const Counter = () => {
+      renders++;
+      return <p>counted</p>;
+    };
+    const M = {
+      __module: {
+        imports: [
+          RouterModule.forRoot(
+            [{ path: '/u/:id', component: Counter }],
+            { basePath: '/' },
+          ),
+        ],
+      },
+    };
+    const { router } = outletWith(M, '/u/1');
+    expect(await screen.findByText('counted')).toBeTruthy();
+    const seen = renders;
+    await act(async () => {
+      router.navigate('/u/1?tab=2');
+    });
+    expect(renders).toBe(seen);
+    // A param change doesn't re-render either — params signal subscribers
+    // update on their own (Angular component-reuse semantics).
+    await act(async () => {
+      router.navigate('/u/2');
+    });
+    expect(renders).toBe(seen);
   });
 
   it('componentless routes pass through to the next depth', async () => {

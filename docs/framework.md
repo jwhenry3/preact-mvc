@@ -163,6 +163,21 @@ Route entries may carry `component`, `module`, `loadComponent`,
 under that outlet level. `:param` segments decode into merged `params`;
 `*` is a wildcard. `Link` intercepts clicks for `navigate()`.
 
+**Emission semantics.** `url` is the only raw signal; derived state is
+stable-identity so subscribers only re-render on real change:
+
+- `matches` emits a new array only when the matched chain differs by
+  route or params — a query-only navigation (`?date=`, `?deletedBill=`)
+  reuses the previous array, so the outlet tree doesn't re-render.
+- `params` shallow-compares and reuses its object; `path` and `search`
+  computeds split the URL so a view subscribing to `path` ignores
+  query churn (and vice versa).
+- The routed component mounts inside a do-not-update wrapper: outlet
+  re-renders (parent state, an equivalent re-match) never re-run it.
+  Its inputs are signals and context, which re-render it independently —
+  Angular's reuse semantics: a param change on the same route updates
+  `params` subscribers without recreating the component.
+
 **Lazy routes** (`lazy.tsx`, `router/lazy.ts`). Two surfaces share the
 same machinery:
 

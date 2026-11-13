@@ -1,4 +1,4 @@
-import { createContext } from 'preact';
+import { createContext, Component as PreactComponent, h } from 'preact';
 import type { ComponentChildren, FunctionComponent } from 'preact';
 import { useContext } from 'preact/hooks';
 import PRRouter from 'preact-router';
@@ -29,6 +29,31 @@ const OutletDepth = createContext(0);
  * The sink renders nothing; url/matches props die on the component.
  */
 const BridgeSink: FunctionComponent<RoutableProps> = () => null;
+
+/**
+ * A routed component receives no props — its inputs are signals and
+ * context, both of which re-render it on their own. Wrapping each in a
+ * do-not-update shell keeps an outlet re-render (a parent's state, a
+ * query-only navigation re-matching the same route) from re-running the
+ * whole routed view for nothing. Per-component wrapper types preserve
+ * remount semantics: matching a different route still swaps the type.
+ */
+const staticHosts = new WeakMap<object, any>();
+function staticHost(Component: any) {
+  let host = staticHosts.get(Component);
+  if (!host) {
+    host = class extends PreactComponent {
+      shouldComponentUpdate() {
+        return false;
+      }
+      render() {
+        return <Component />;
+      }
+    };
+    staticHosts.set(Component, host);
+  }
+  return host;
+}
 
 export function RouterOutlet(props: { fallback?: ComponentChildren }) {
   const router = useService(Router);
@@ -89,7 +114,7 @@ export function RouterOutlet(props: { fallback?: ComponentChildren }) {
         {pending ? (
           props.fallback ?? null
         ) : Component ? (
-          <Component />
+          h(staticHost(Component), null)
         ) : (
           /* A componentless route is a pure wrapper — the chain continues
              one depth down without needing a shell view. */
