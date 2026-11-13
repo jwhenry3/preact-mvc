@@ -169,6 +169,10 @@ function hostFor(cls: any): any {
   };
   (host as any).displayName = cls.name;
   hostCache.set(cls, host);
+  // Hosts also pass isFunctionComponentType, so a re-fired vnode hook would
+  // wrap them like any function component — self-map keeps the rewrite
+  // idempotent the same way (see wrapFunctionComponent).
+  wrappedTypes.set(host, host);
   return host;
 }
 
@@ -249,6 +253,13 @@ function wrapFunctionComponent(type: any) {
     Object.setPrototypeOf(wrapped, type);
     wrapped.displayName = type.displayName || type.name;
     wrappedTypes.set(type, wrapped);
+    // Preact's update path shallow-copies mounted vnodes and re-fires
+    // options.vnode on the copy — which already carries the wrapped type.
+    // Self-mapping makes the rewrite idempotent: a second pass returns the
+    // same function, so the copy's type keeps matching the mounted
+    // component instead of remounting it (and looping mount effects into
+    // the update-depth guard).
+    wrappedTypes.set(wrapped, wrapped);
   }
   return wrapped;
 }

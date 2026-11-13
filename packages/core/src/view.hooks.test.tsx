@@ -1,6 +1,6 @@
 import 'preact/debug';
 import { h, render, options } from 'preact';
-import { useRef, useEffect, useLayoutEffect } from 'preact/hooks';
+import { useRef, useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { describe, it, expect, vi } from 'vitest';
 import { signal } from '@preact/signals';
 import { Injector } from './injector';
@@ -124,6 +124,94 @@ describe('function components inside views (preact/debug loaded)', () => {
       expect.stringContaining('scheduled an update while rendering')
     );
     warn.mockRestore();
+  });
+
+  it('keeps component identity across re-fires of options.vnode', () => {
+    // Preact's update path shallow-copies the mounted vnode and re-runs
+    // options.vnode on the copy (it carries __c). A second pass over an
+    // already-wrapped type must return the same function, or the copy's
+    // type stops matching the mounted component and every update remounts.
+    function AnyFn() {
+      return null;
+    }
+    const v = h(AnyFn, null) as any;
+    (options as any).vnode(v);
+    const wrapped = v.type;
+    expect(wrapped).not.toBe(AnyFn);
+    const copy = { ...v, __c: {} };
+    (options as any).vnode(copy);
+    expect(copy.type).toBe(wrapped);
+
+    class V extends View {
+      render() {
+        return null;
+      }
+    }
+    const vv = h(V, null) as any;
+    (options as any).vnode(vv);
+    const host = vv.type;
+    const copy2 = { ...vv, __c: {} };
+    (options as any).vnode(copy2);
+    expect(copy2.type).toBe(host);
+  });
+
+  it('does not remount on self-update + parent re-render (update-copy drift)', async () => {
+    // The shim's repro, run against the real wrap: Target's setState in
+    // useLayoutEffect queues a self-update whose vnode copy re-fires
+    // options.vnode and is stored as the canonical child. The parent's
+    // next re-render produces a fresh h(Target) — same wrapped type with
+    // the fix (diff), wrapped-again without it (remount).
+    let mounts = 0;
+    function Target() {
+      const [, setN] = useState(0);
+      useLayoutEffect(() => {
+        mounts++;
+        setN((n) => n + 1);
+      }, []);
+      return <div>target</div>;
+    }
+    function Parent() {
+      const [, setN] = useState(0);
+      (Parent as any).tick = () => setN((x) => x + 1);
+      return <Target key="t" />;
+    }
+    const host = document.createElement('div');
+    render(<Parent />, host);
+    await new Promise((r) => setTimeout(r, 50));
+    (Parent as any).tick();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(host.textContent).toBe('target');
+    expect(mounts).toBe(1);
+  });
+
+  it('does not remount a function component on signal-driven update', async () => {
+    let mounts = 0;
+    const s = signal(0);
+    function Counted() {
+      const v = s.value; // self-update path: vnode copy re-fires options.vnode
+      useLayoutEffect(() => {
+        mounts++;
+      }, []);
+      return <span>v{v}</span>;
+    }
+    class V extends View {
+      render() {
+        s.value; // the parent re-renders too — fresh h(Counted) vs stored copy
+        return <Counted />;
+      }
+    }
+    const host = mount(V);
+    const el = host.querySelector('span')!;
+    // First write: Counted's self-update copy stores a drifted type without
+    // the fix. Second write: the parent's fresh h(Counted) re-matches
+    // against the drifted type — remount without the fix, diff with it.
+    s.value = 1;
+    await new Promise((r) => setTimeout(r, 50));
+    s.value = 2;
+    await new Promise((r) => setTimeout(r, 50));
+    expect(host.querySelector('span')).toBe(el); // diffed, not remounted
+    expect(mounts).toBe(1);
+    expect(host.textContent).toContain('v2');
   });
 
   it('still rejects hooks called outside a render body', () => {

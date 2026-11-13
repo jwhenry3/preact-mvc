@@ -108,6 +108,12 @@ signals they read (effects run once immediately at construction).
   callback) still throw. The guard must exist at install time, so
   `import 'preact/debug'` must precede framework imports (preset-vite
   injects it first).
+- **Idempotent vnode rewrite**: Preact's update path shallow-copies
+  mounted vnodes and re-fires `options.vnode` on the copy, which already
+  carries the rewritten type. Wrapped function types and View hosts
+  self-map in `wrappedTypes`, so a second pass returns the same function
+  and component identity survives (a drifted type would remount the
+  subtree on every update and loop mount effects).
 
 ## Modules (`module.ts`) and decorators (`decorators.ts`)
 

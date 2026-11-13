@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.20]
+
+### `@preact-mvc/core`
+
+#### Fixed
+
+- **The `options.vnode` type rewrite is idempotent.** Preact's update
+  path shallow-copies mounted vnodes and re-fires `options.vnode` on the
+  copy; a second pass over an already-wrapped function type (or a View
+  host, which also looks like a function component) wrapped it again,
+  and the drifted type stopped matching the mounted component — every
+  update remounted the subtree, re-ran mount effects, and looped into
+  the update-depth guard. `wrappedTypes` now self-maps wrapped and host
+  functions so re-fires return the same type.
+
 ## [0.1.9]
 
 ### `@preact-mvc/core`
