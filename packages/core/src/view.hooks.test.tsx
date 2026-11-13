@@ -1,7 +1,7 @@
 import 'preact/debug';
 import { h, render, options } from 'preact';
 import { useRef, useEffect, useLayoutEffect } from 'preact/hooks';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { signal } from '@preact/signals';
 import { Injector } from './injector';
 import { InjectorContext } from './context';
@@ -102,6 +102,28 @@ describe('function components inside views (preact/debug loaded)', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(host.textContent).toContain('t4');
     expect(host.textContent).toContain('seeded');
+  });
+
+  it('warns on a render-scheduled update without blocking converging writes', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const n = signal(0);
+    function SeedOnce() {
+      // Converging render-phase write: runs once, then stops.
+      if (n.value < 1) n.value++;
+      return <span>seed:{n.value}</span>;
+    }
+    class V extends View {
+      render() {
+        return <SeedOnce />;
+      }
+    }
+    const host = mount(V);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(host.textContent).toContain('seed:1');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('scheduled an update while rendering')
+    );
+    warn.mockRestore();
   });
 
   it('still rejects hooks called outside a render body', () => {

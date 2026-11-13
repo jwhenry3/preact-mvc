@@ -62,6 +62,12 @@ function tokenName(token: Token<any>): string {
   return typeof token === 'function' ? token.name : token.toString();
 }
 
+// The synchronous resolution chain, so a circular-dependency error can name
+// the full cycle (A -> B -> A) instead of only the token that re-entered.
+// Module-level and shared across injectors: a resolution always unwinds on
+// the same call stack it started on.
+const resolutionPath: Token<any>[] = [];
+
 // Injectable handle to the enclosing scope's destruction — inject(DestroyRef)
 // anywhere to register cleanup that runs when the scope is deactivated.
 export class DestroyRef {
@@ -124,7 +130,13 @@ export class Injector {
     } else {
       const { useFactory, deps = [] } = provider;
       this.records.set(provider.provide, {
-        factory: () => useFactory(...deps.map((d) => this.get(d))),
+        // Factory bodies run in injection context so they may inject()
+        // directly (e.g. DestroyRef) beyond their declared deps — Angular's
+        // semantics for factory providers.
+        factory: () =>
+          runInInjectionContext(this, () =>
+            useFactory(...deps.map((d) => this.get(d)))
+          ),
         resolving: false,
         resolved: false,
         value: undefined,
@@ -167,14 +179,23 @@ export class Injector {
 
   private resolveRecord<T>(token: Token<T>, rec: Record): T {
     if (rec.resolving) {
-      throw new Error(`Circular dependency detected while resolving ${tokenName(token)}`);
+      // The repeated token re-entered while still resolving: name the whole
+      // cycle (A -> B -> A), not just the token that tripped it.
+      const cycle = [...resolutionPath, token];
+      const from = resolutionPath.indexOf(token);
+      throw new Error(
+        `Circular dependency: ${cycle.slice(from).map(tokenName).join(' -> ')} ` +
+          `(looked up from "${this.name}")`
+      );
     }
     if (!rec.resolved) {
       rec.resolving = true;
+      resolutionPath.push(token);
       try {
         rec.value = rec.factory();
         rec.resolved = true;
       } finally {
+        resolutionPath.pop();
         rec.resolving = false;
       }
     }
@@ -207,13 +228,28 @@ export class Injector {
   }
 
   activate(): void {
+    if (this.active) return;
     this.active = true;
     for (const inst of this.managed) inst.onInit?.();
   }
 
   deactivate(): void {
-    for (const inst of this.managed) inst.onDestroy?.();
-    for (const cleanup of this.cleanups) cleanup();
+    // Teardown runs to completion even when individual callbacks throw:
+    // skipping the rest is how effects, timers, and listeners leak.
+    for (const inst of this.managed) {
+      try {
+        inst.onDestroy?.();
+      } catch (err) {
+        console.error('[framework] onDestroy failed during deactivate:', err);
+      }
+    }
+    for (const cleanup of this.cleanups) {
+      try {
+        cleanup();
+      } catch (err) {
+        console.error('[framework] scope cleanup failed during deactivate:', err);
+      }
+    }
     this.managed.length = 0;
     this.cleanups.length = 0;
     this.active = false;

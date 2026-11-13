@@ -92,6 +92,37 @@ describe('Injector', () => {
     expect(() => inj.get(A)).toThrow(/Circular dependency/);
   });
 
+  it('names the full chain in circular dependency errors', () => {
+    class AImpl {
+      b = inject(BImpl);
+    }
+    class BImpl {
+      a = inject(AImpl);
+    }
+    const inj = new Injector();
+    inj.provide(AImpl);
+    inj.provide(BImpl);
+    expect(() => inj.get(AImpl)).toThrow(/Circular dependency: AImpl -> BImpl -> AImpl/);
+  });
+
+  it('runs useFactory providers in injection context', () => {
+    const TOKEN = new InjectionToken<Service>('product');
+    const inj = new Injector();
+    inj.provide(Service);
+    let destroyed = false;
+    inj.provide({
+      provide: TOKEN,
+      useFactory: () => {
+        const svc = inject(Service); // beyond deps: legal inside a factory
+        inject(DestroyRef).onDestroy(() => (destroyed = true));
+        return svc;
+      },
+    });
+    expect(inj.get(TOKEN)).toBeInstanceOf(Service);
+    inj.deactivate();
+    expect(destroyed).toBe(true);
+  });
+
   it('providedIn: root lazily registers at the root and shares the instance', () => {
     @Injectable({ providedIn: 'root' })
     class RootSvc {}
@@ -197,5 +228,41 @@ describe('scope lifecycle', () => {
     inj.get(S).ref.onDestroy(cleanup);
     inj.deactivate();
     expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it('deactivate runs all teardown even when one onDestroy throws', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const inj = new Injector();
+    const calls: string[] = [];
+    class Bad {
+      onDestroy() {
+        calls.push('bad');
+        throw new Error('teardown failed');
+      }
+    }
+    class Good {
+      onDestroy() {
+        calls.push('good');
+      }
+    }
+    inj.instantiate(Bad);
+    inj.instantiate(Good);
+    inj.registerCleanup(() => calls.push('cleanup'));
+    inj.activate();
+    inj.deactivate();
+    expect(calls).toEqual(['bad', 'good', 'cleanup']);
+    errSpy.mockRestore();
+  });
+
+  it('activate is a no-op on an already-active scope', () => {
+    const onInit = vi.fn();
+    class V {
+      onInit = onInit;
+    }
+    const inj = new Injector();
+    inj.instantiate(V);
+    inj.activate();
+    inj.activate();
+    expect(onInit).toHaveBeenCalledTimes(1);
   });
 });

@@ -186,6 +186,15 @@ export class Router {
     this.syncUrl(location.pathname + location.search);
   };
 
+  /** Detach the popstate listener. Wired to the owning scope's DestroyRef
+   *  by the RouterModule.forRoot factory, so a recreated Router can't
+   *  duplicate listeners (HMR, test re-mounts). */
+  dispose(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('popstate', this.onPopState);
+    }
+  }
+
   navigate(to: string): void {
     // Through preact-router: updates every mounted <Router> in the tree —
     // ours and foreign ones — not just our own subscriber. route() is a

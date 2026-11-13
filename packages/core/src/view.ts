@@ -57,6 +57,12 @@ const ERROR_HINTS: [RegExp, string][] = [
       "diff corrupts preact/debug's hook tracking for the outer component. " +
       'Mount sub-trees in useLayoutEffect instead.',
   ],
+  [
+    /^Cycle detected$/,
+    'a signal cycle: a computed or effect re-triggered itself within one ' +
+      'synchronous batch — check for a write to a signal the same ' +
+      'computation reads.',
+  ],
 ];
 
 /** Map a caught error to a known-cause hint, or null when unrecognized. */
@@ -179,7 +185,44 @@ function hostFor(cls: any): any {
 // flag only when the hook's component provably IS that instance.
 
 let currentRender: any = null;
+// Instance whose function body just returned. Signal writes in a body are
+// batched by the signals computed and flush after the body exits, so this
+// is the marker that attributes a deferred self-scheduled update.
+let afterRenderBody: any = null;
 const wrappedTypes = new WeakMap<object, any>();
+
+// --- Update-depth guard -------------------------------------------------------
+// React's "Maximum update depth exceeded" (#185) analog. A signal written
+// during a render schedules another pass on a microtask; a write that re-runs
+// every pass loops forever — separate tasks, so @preact/signals' synchronous
+// "Cycle detected" never trips and the tab starves. Count renders per
+// component instance inside a sliding window and throw a named error instead
+// of hanging: the throw routes through options.__e to the view boundary.
+
+const UPDATE_DEPTH_LIMIT = 50;
+const UPDATE_DEPTH_WINDOW_MS = 100;
+const renderCounts = new WeakMap<object, { n: number; since: number }>();
+
+function checkUpdateDepth(vnode: VNode): void {
+  const comp = (vnode as any).__c;
+  if (!comp) return;
+  const now = Date.now();
+  let e = renderCounts.get(comp);
+  if (!e || now - e.since > UPDATE_DEPTH_WINDOW_MS) {
+    e = { n: 0, since: now };
+    renderCounts.set(comp, e);
+  }
+  if (++e.n > UPDATE_DEPTH_LIMIT) {
+    const t = vnode.type as any;
+    const name = t?.displayName || t?.name || 'component';
+    throw new Error(
+      `[framework] Maximum update depth exceeded: ${name} re-rendered ` +
+        `${UPDATE_DEPTH_LIMIT} times within ${UPDATE_DEPTH_WINDOW_MS}ms. The usual cause ` +
+        'is a signal write inside render(), or an effect or navigate() that ' +
+        're-triggers itself every pass.'
+    );
+  }
+}
 
 function isFunctionComponentType(t: any): boolean {
   return typeof t === 'function' && !(t.prototype && t.prototype.render);
@@ -195,6 +238,11 @@ function wrapFunctionComponent(type: any) {
         return type.call(this, props, ctx);
       } finally {
         currentRender = prev;
+        // Signal writes in the body are batched by the wrapping computed
+        // and flush notifications right after the body returns — remember
+        // whose body just exited so a self-scheduled update can be
+        // attributed to this component.
+        afterRenderBody = this;
       }
     };
     // Statics (displayName, metadata stamps) resolve off the original type.
@@ -234,6 +282,62 @@ export function installViewInterop(): void {
       }
     };
   }
+
+  // Update-depth guard: always on (unbounded re-render loops hang prod tabs
+  // the same as dev tabs). It keys on the per-render hook — __r in the dist
+  // build, _render in the source build — so install on both; each fires
+  // only in its own realm.
+  for (const key of ['__r', '_render'] as const) {
+    const prevR = (options as any)[key] as ((v: VNode) => void) | undefined;
+    (options as any)[key] = (vnode: VNode) => {
+      afterRenderBody = null;
+      checkUpdateDepth(vnode);
+      prevR?.(vnode);
+    };
+  }
+  for (const key of ['diffed', '_diffed'] as const) {
+    const prevD = (options as any)[key] as ((v: VNode) => void) | undefined;
+    (options as any)[key] = (vnode: VNode) => {
+      // Only a component's own diffed closes its flush window — element
+      // and text diffeds interleave between the body exit and the
+      // deferred notification.
+      if ((vnode as any).__c) afterRenderBody = null;
+      prevD?.(vnode);
+    };
+  }
+
+  // Early warning for the usual cause: an update scheduled while a component
+  // body's render window is open — the signature of a signal write inside
+  // render(). Plain setState lands inside the body (currentRender);
+  // signal writes are batched by the wrapping computed and their deferred
+  // flush lands just after the body exits (afterRenderBody). Cleared at the
+  // next __r/diffed so post-body writes — layout effects, componentDidMount,
+  // async effects — never warn. The write itself is legal (converging
+  // writes are React's render-phase pattern), so this is a
+  // once-per-component warn, not a throw: the depth guard above carries
+  // the hard stop. Both markers only populate when component types are
+  // wrapped (debug loaded), so this costs nothing in prod.
+  const warnedDuringRender = new WeakSet<object>();
+  const prevDebounce = (options as any).debounceRendering as
+    | ((cb: () => void) => void)
+    | undefined;
+  const defer = (cb: () => void) =>
+    typeof Promise === 'function' ? void Promise.resolve().then(cb) : setTimeout(cb);
+  (options as any).debounceRendering = (cb: () => void) => {
+    const comp = currentRender ?? afterRenderBody;
+    if (comp && !warnedDuringRender.has(comp)) {
+      warnedDuringRender.add(comp);
+      const t = ((comp as any).__constructor || comp.constructor) as any;
+      const name = t?.displayName || t?.name || 'component';
+      console.warn(
+        `[framework] ${name} scheduled an update while rendering — a signal ` +
+          'write inside a render body re-renders the component immediately. ' +
+          'Make the write conditional (converging writes are fine) or move ' +
+          'it to an effect.'
+      );
+    }
+    (prevDebounce ?? defer)(cb);
+  };
 
   const prev = (options as any).vnode as ((vnode: VNode) => void) | undefined;
   (options as any).vnode = (vnode: VNode) => {

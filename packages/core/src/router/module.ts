@@ -1,5 +1,6 @@
 import { ROUTES, ROUTER_BASE, Router, defaultBasePath } from './router';
 import { resolveRouteSync } from './lazy';
+import { inject, DestroyRef } from '../injector';
 import type { Route } from './router';
 
 export interface RouterOptions {
@@ -23,7 +24,11 @@ export class RouterModule {
           { provide: ROUTER_BASE, useValue: opts.basePath ?? defaultBasePath() },
           {
             provide: Router,
-            useFactory: (r: Route[], base: string) => new Router(r, base),
+            useFactory: (r: Route[], base: string) => {
+              const router = new Router(r, base);
+              inject(DestroyRef).onDestroy(() => router.dispose());
+              return router;
+            },
             deps: [ROUTES, ROUTER_BASE],
           },
         ],

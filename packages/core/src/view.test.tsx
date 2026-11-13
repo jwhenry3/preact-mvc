@@ -354,4 +354,38 @@ describe('error boundary', () => {
     expect(screen.getByText(/useLayoutEffect/)).toBeTruthy();
     errSpy.mockRestore();
   });
+
+  it('throws "Maximum update depth" on a signal write inside render', async () => {
+    // React #185 analog: a signal write during render schedules another
+    // pass — without the guard this test would spin microtasks forever.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const n = signal(0);
+    class Looping extends View {
+      render() {
+        n.value++;
+        return <p>{n.value}</p>;
+      }
+    }
+    mount(<Looping />);
+    expect(await screen.findByText('Looping failed')).toBeTruthy();
+    expect(screen.getByText(/Maximum update depth exceeded/)).toBeTruthy();
+    errSpy.mockRestore();
+  });
+
+  it('throws "Maximum update depth" for a function-component write loop', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const n = signal(0);
+    function Looping() {
+      n.value++;
+      return <p>{n.value}</p>;
+    }
+    class V extends View {
+      render() {
+        return <Looping />;
+      }
+    }
+    mount(<V />);
+    expect(await screen.findByText(/Maximum update depth exceeded/)).toBeTruthy();
+    errSpy.mockRestore();
+  });
 });

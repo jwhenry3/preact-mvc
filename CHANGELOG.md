@@ -9,6 +9,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.8]
+
+### `@preact-mvc/core`
+
+#### Added
+
+- **Update-depth guard** (React #185 analog). The view interop counts
+  renders per component instance in a 100ms sliding window; more than 50
+  throws `Maximum update depth exceeded` — a signal write inside
+  `render()`, or an effect/`navigate()` that re-triggers itself — routed
+  to the view boundary instead of starving the main thread on an
+  unbounded microtask loop. Always on, prod included. In dev it is
+  preceded by a console warning naming the component that scheduled an
+  update during its own render window — writes during render are legal
+  (converging writes settle after one re-render); only non-convergent
+  loops throw.
+- **`useFactory` providers run in injection context**, so factories may
+  `inject()` beyond declared `deps` (e.g. `inject(DestroyRef)` to tie the
+  product's teardown to the owning scope).
+
+#### Fixed
+
+- **`deactivate()` isolates teardown failures.** A throwing `onDestroy`
+  or scope cleanup is logged and skipped instead of aborting the pass —
+  the rest of the scope's teardown still runs, so a single bad callback
+  can't leak effects, timers, or listeners. `activate()` on an
+  already-active scope is a no-op.
+- **Circular-dependency errors name the chain**
+  (`Circular dependency: A -> B -> A`) via a synchronous resolution
+  stack, instead of only the token that re-entered.
+- **`Router` releases its `popstate` listener on scope teardown** —
+  the `RouterModule.forRoot` factory wires `dispose()` through
+  `inject(DestroyRef)`, so a re-created router can't stack listeners
+  (HMR, test re-mounts).
+
 ## [0.1.7]
 
 ### `@preact-mvc/core`

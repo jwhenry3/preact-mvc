@@ -33,6 +33,17 @@ own scope and can make it standalone.
 - `DestroyRef` — every injector pre-registers itself; `inject(DestroyRef)`
   gives classes a handle to `onDestroy(fn)` registrations run at
   `deactivate()`.
+- `useFactory` providers run in injection context, so a factory may
+  `inject()` beyond its declared `deps` (e.g. `inject(DestroyRef)` to tie
+  the product's teardown to the owning scope, as `RouterModule.forRoot`
+  does for the router's popstate listener).
+- Circular dependencies throw with the whole chain named
+  (`Circular dependency: A -> B -> A`), detected via a synchronous
+  resolution stack.
+- `deactivate()` isolates lifecycle failures: a throwing `onDestroy` or
+  cleanup is logged and the rest still run, so teardown can't leave
+  effects, timers, or listeners behind. `activate()` on an active scope
+  is a no-op.
 
 ## Signals (`signals.ts`)
 
@@ -70,6 +81,19 @@ signals they read (effects run once immediately at construction).
   semantics (hooks legal). Hooks inside `View.render()` are forbidden by
   convention: they run during the host's render pass and conditional renders
   would scramble hook order.
+- **Update-depth guard** (React #185 analog): `installViewInterop` counts
+  renders per component instance inside a sliding window
+  (`options.__r`/`_render`). More than 50 renders of the same component in
+  100ms throws `Maximum update depth exceeded` — the signature of a signal
+  write inside `render()` or an effect/`navigate()` that re-triggers
+  itself every pass — routed to the view boundary instead of starving the
+  main thread on an unbounded microtask loop. Always on, prod included.
+  In dev (`preact/debug` loaded) an earlier warn names the culprit: an
+  `options.debounceRendering` wrapper flags an update scheduled while a
+  component body's render window is open. Writes during render are not
+  forbidden — the signals computed already batches them and converging
+  writes (React's render-phase pattern) re-render once and settle; only
+  non-convergent loops trip the guard.
 - **preact/debug resilience**: `preact/hooks` flushes a component's pending
   `useEffect` callbacks inside `options.__r` when it re-renders before the
   async afterPaint pass. A pending effect that calls `render()` runs a

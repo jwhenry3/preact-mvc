@@ -173,6 +173,17 @@ describe('navigation', () => {
     });
     expect(r.url.value).toBe('/user/9');
   });
+
+  it('dispose() detaches the popstate listener', () => {
+    const r = makeRouter();
+    r.url.value = '/';
+    history.pushState(null, '', '/user/9');
+    r.dispose();
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(r.url.value).toBe('/');
+  });
 });
 
 describe('RouterOutlet', () => {
